@@ -1,0 +1,12 @@
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+view/home
+
+*.test
+
+go.work
+
+.env

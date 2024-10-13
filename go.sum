@@ -1,0 +1,6 @@
+github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
+github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
+github.com/joho/godotenv v1.5.1 h1:7eLL/+HRGLY0ldzfGMeQkb7vMd0as4CfYvUVzLqw0N0=
+github.com/joho/godotenv v1.5.1/go.mod h1:f4LDr5Voq0i2e/R5DDNOoa2zzDfwtkZa6DnEwAbqwq4=
+github.com/maxence-charriere/go-app/v10 v10.0.8 h1:ZbHTaIN1nMTzMvWmx5/wAMioDxnftNmkYfcX3O4lleE=
+github.com/maxence-charriere/go-app/v10 v10.0.8/go.mod h1:VyjGLeTiK6hfAQ/Q5ZVcLbuJ9vOZhKcewSC/ZwI+6WM=
