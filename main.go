@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/gonzabosio/res-manager/controller"
 	"github.com/gonzabosio/res-manager/view"
 	"github.com/joho/godotenv"
 	"github.com/maxence-charriere/go-app/v10/pkg/app"
@@ -12,21 +13,27 @@ import (
 
 func main() {
 	if err := godotenv.Load(); err != nil {
-		log.Fatalf("Error loading enviroment variables: %s", err)
+		log.Printf("Error loading enviroment variables: %s", err)
 	}
 
 	app.Route("/", func() app.Composer { return &view.Home{} })
+	app.Route("/create-team", func() app.Composer { return &view.CreateTeam{} })
+	app.Route("/join-team", func() app.Composer { return &view.JoinTeam{} })
 	app.RunWhenOnBrowser()
 
 	http.Handle("/", &app.Handler{
-		Name:        "Resources Manager",
+		Name:        "Resource Manager",
 		Description: "Projects requirements and resources manager",
 		Title:       "Resources Manager",
 		Icon:        app.Icon{SVG: "https://svgshare.com/i/1BQ6.svg"},
 		Styles:      []string{"/web/style/global.css"},
 	})
-
+	go func() {
+		if err := controller.InitBackend(); err != nil {
+			log.Fatalf("backend server connection failed: %v", err)
+		}
+	}()
 	if err := http.ListenAndServe(os.Getenv("FRONT_PORT"), nil); err != nil {
-		log.Fatalf("Server down: %s", err)
+		log.Fatalf("wasm server down: %s", err)
 	}
 }
