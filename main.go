@@ -34,6 +34,6 @@ func main() {
 		}
 	}()
 	if err := http.ListenAndServe(os.Getenv("FRONT_PORT"), nil); err != nil {
-		log.Fatalf("wasm server down: %s", err)
+		log.Fatalf("wasm server down: %v", err)
 	}
 }
