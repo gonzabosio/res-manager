@@ -7,7 +7,7 @@ import (
 )
 
 type TeamRepository interface {
-	CreateTeam(team *model.Team) (string, error)
+	CreateTeam(team *model.Team) (int64, error)
 	ReadTeams() (*[]model.Team, error)
 	ReadTeamByID(teamId int64) (*model.Team, error)
 	UpdateTeam(team *model.Team) error
@@ -16,12 +16,12 @@ type TeamRepository interface {
 
 var _ TeamRepository = (*DBService)(nil)
 
-func (s *DBService) CreateTeam(team *model.Team) (string, error) {
-	var insertedID string
+func (s *DBService) CreateTeam(team *model.Team) (int64, error) {
+	var insertedID int64
 	query := "INSERT INTO public.team(name, password) VALUES($1, $2) RETURNING id"
 	err := s.DB.QueryRow(query, team.Name, team.Password).Scan(&insertedID)
 	if err != nil {
-		return "", fmt.Errorf("failed team creation: %v", err)
+		return 0, fmt.Errorf("failed team creation: %v", err)
 	}
 	return insertedID, nil
 }

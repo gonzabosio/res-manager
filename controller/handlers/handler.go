@@ -6,7 +6,7 @@ import (
 )
 
 type Handler struct {
-	RepositoryService *repository.DBService
+	Service *repository.DBService
 }
 
 func NewHandler() (*Handler, error) {
@@ -16,6 +16,6 @@ func NewHandler() (*Handler, error) {
 		return nil, err
 	}
 	s := &repository.DBService{DB: db}
-	h.RepositoryService = s
+	h.Service = s
 	return h, nil
 }

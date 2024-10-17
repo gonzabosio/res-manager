@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -19,25 +18,27 @@ func (h *Handler) CreateTeam(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		errors := err.(validator.ValidationErrors)
 		WriteJSON(w, map[string]string{
-			"message": fmt.Sprintf("Validation error: %s", errors),
+			"message": "Validation error",
+			"error":   errors.Error(),
 		}, http.StatusBadRequest)
 		return
 	}
-	id, err := h.RepositoryService.CreateTeam(team)
+	id, err := h.Service.CreateTeam(team)
 	if err != nil {
 		WriteJSON(w, map[string]string{
-			"message": err.Error(),
+			"message": "Failed team creation",
+			"error":   err.Error(),
 		}, http.StatusBadRequest)
 		return
 	}
-	WriteJSON(w, map[string]string{
+	WriteJSON(w, map[string]interface{}{
 		"message": "Team created successfully",
 		"team_id": id,
 	}, http.StatusOK)
 }
 
 func (h *Handler) GetTeams(w http.ResponseWriter, r *http.Request) {
-	teams, err := h.RepositoryService.ReadTeams()
+	teams, err := h.Service.ReadTeams()
 	if err != nil {
 		WriteJSON(w, map[string]string{
 			"error": err.Error(),
@@ -50,7 +51,7 @@ func (h *Handler) GetTeams(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
-func (h *Handler) GetTeamById(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetTeamByID(w http.ResponseWriter, r *http.Request) {
 	idS := chi.URLParam(r, "team-id")
 	id, err := strconv.Atoi(idS)
 	if err != nil {
@@ -60,7 +61,7 @@ func (h *Handler) GetTeamById(w http.ResponseWriter, r *http.Request) {
 		}, http.StatusBadRequest)
 		return
 	}
-	team, err := h.RepositoryService.ReadTeamByID(int64(id))
+	team, err := h.Service.ReadTeamByID(int64(id))
 	if err != nil {
 		WriteJSON(w, map[string]interface{}{
 			"message": "Could not get the team",
@@ -84,7 +85,7 @@ func (h *Handler) ModifyTeam(w http.ResponseWriter, r *http.Request) {
 		}, http.StatusBadRequest)
 		return
 	}
-	err = h.RepositoryService.UpdateTeam(team)
+	err = h.Service.UpdateTeam(team)
 	if err != nil {
 		WriteJSON(w, map[string]interface{}{
 			"message": "Could not update team",
@@ -108,7 +109,7 @@ func (h *Handler) DeleteTeam(w http.ResponseWriter, r *http.Request) {
 		}, http.StatusBadRequest)
 		return
 	}
-	err = h.RepositoryService.DeleteTeamByID(int64(id))
+	err = h.Service.DeleteTeamByID(int64(id))
 	if err != nil {
 		WriteJSON(w, map[string]interface{}{
 			"message": "Could not delete team",

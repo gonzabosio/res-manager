@@ -8,4 +8,5 @@ type DBService struct {
 
 type RepositoryService struct {
 	TeamRepository
+	ProjectRepository
 }
