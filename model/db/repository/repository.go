@@ -9,4 +9,7 @@ type DBService struct {
 type RepositoryService struct {
 	TeamRepository
 	ProjectRepository
+	SectionRepository
+	ResourceRepository
+	ParticipantRepository
 }

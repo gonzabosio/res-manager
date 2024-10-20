@@ -6,15 +6,26 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-playground/validator/v10"
 	"github.com/gonzabosio/res-manager/model"
 )
 
 func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
+	validate := validator.New()
 	proj := new(model.Project)
 	if err := json.NewDecoder(r.Body).Decode(&proj); err != nil {
 		WriteJSON(w, map[string]interface{}{
 			"message": "Invalid project data or bad format",
 			"error":   err.Error(),
+		}, http.StatusBadRequest)
+		return
+	}
+	err := validate.Struct(proj)
+	if err != nil {
+		errors := err.(validator.ValidationErrors)
+		WriteJSON(w, map[string]string{
+			"message": "Validation error",
+			"error":   errors.Error(),
 		}, http.StatusBadRequest)
 		return
 	}
@@ -32,7 +43,7 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
-func (h *Handler) GetProjectByTeamID(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetProjectsByTeamID(w http.ResponseWriter, r *http.Request) {
 	idS := chi.URLParam(r, "team-id")
 	id, err := strconv.Atoi(idS)
 	if err != nil {
@@ -42,17 +53,23 @@ func (h *Handler) GetProjectByTeamID(w http.ResponseWriter, r *http.Request) {
 		}, http.StatusBadRequest)
 		return
 	}
-	project, err := h.Service.ReadProjectByTeamID(int64(id))
+	projects, err := h.Service.ReadProjectsByTeamID(int64(id))
 	if err != nil {
 		WriteJSON(w, map[string]string{
-			"message": "Failed reading project",
+			"message": "Failed reading projects",
 			"error":   err.Error(),
 		}, http.StatusBadRequest)
 		return
 	}
+	if len(*projects) == 0 {
+		WriteJSON(w, map[string]string{
+			"message": "No projects found",
+		}, http.StatusOK)
+		return
+	}
 	WriteJSON(w, map[string]interface{}{
-		"message": "Project retrieved successfully",
-		"project": project,
+		"message": "Projects retrieved successfully",
+		"project": projects,
 	}, http.StatusOK)
 }
 func (h *Handler) ModifyProject(w http.ResponseWriter, r *http.Request) {
@@ -62,6 +79,15 @@ func (h *Handler) ModifyProject(w http.ResponseWriter, r *http.Request) {
 		WriteJSON(w, map[string]interface{}{
 			"message": "Invalid project data or bad format",
 			"error":   err.Error(),
+		}, http.StatusBadRequest)
+		return
+	}
+	err = validate.Struct(project)
+	if err != nil {
+		errors := err.(validator.ValidationErrors)
+		WriteJSON(w, map[string]string{
+			"message": "Validation error",
+			"error":   errors.Error(),
 		}, http.StatusBadRequest)
 		return
 	}
@@ -78,7 +104,7 @@ func (h *Handler) ModifyProject(w http.ResponseWriter, r *http.Request) {
 		"team":    project,
 	}, http.StatusOK)
 }
-func (h *Handler) DeleteProjectByID(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) DeleteProject(w http.ResponseWriter, r *http.Request) {
 	idS := chi.URLParam(r, "project-id")
 	id, err := strconv.Atoi(idS)
 	if err != nil {

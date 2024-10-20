@@ -11,9 +11,14 @@ import (
 )
 
 func (h *Handler) CreateTeam(w http.ResponseWriter, r *http.Request) {
-	validate := validator.New()
 	team := new(model.Team)
-	json.NewDecoder(r.Body).Decode(&team)
+	if err := json.NewDecoder(r.Body).Decode(&team); err != nil {
+		WriteJSON(w, map[string]interface{}{
+			"message": "Invalid resource data or bad format",
+			"error":   err.Error(),
+		}, http.StatusBadRequest)
+		return
+	}
 	err := validate.Struct(team)
 	if err != nil {
 		errors := err.(validator.ValidationErrors)
@@ -45,6 +50,12 @@ func (h *Handler) GetTeams(w http.ResponseWriter, r *http.Request) {
 		}, http.StatusBadRequest)
 		return
 	}
+	if len(*teams) == 0 {
+		WriteJSON(w, map[string]string{
+			"message": "No teams found",
+		}, http.StatusOK)
+		return
+	}
 	WriteJSON(w, map[string]interface{}{
 		"message": "Teams retrieved successfully",
 		"teams":   teams,
@@ -66,7 +77,7 @@ func (h *Handler) GetTeamByID(w http.ResponseWriter, r *http.Request) {
 		WriteJSON(w, map[string]interface{}{
 			"message": "Could not get the team",
 			"error":   err.Error(),
-		}, http.StatusNotFound)
+		}, http.StatusOK)
 		return
 	}
 	WriteJSON(w, map[string]interface{}{

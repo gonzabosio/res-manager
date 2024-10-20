@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/maxence-charriere/go-app/v10/pkg/app"
@@ -30,14 +31,12 @@ func (t *CreateTeam) Render() app.UI {
 				AutoFocus(true).
 				OnChange(t.ValueTo(&t.password)),
 		),
+		app.P().Text(t.name).OnChange(t.ValueTo(&t.name)),
 		app.Button().Text("Create").OnClick(func(ctx app.Context, e app.Event) {
 			app.Log("Send request")
-			res, err := http.Post("http://localhost:3060/team", "application/json",
+			res, err := http.Post(fmt.Sprintf("%v/team", os.Getenv("BACK_URL")), "application/json",
 				strings.NewReader(fmt.Sprintf(
-					`{
-				"name": "%v" 
-				"password": "%v"
-				}`,
+					`{"name":"%v","password":"%v"}`,
 					t.name, t.password)))
 			if err != nil {
 				log.Println(err)

@@ -7,11 +7,11 @@ import (
 )
 
 type TeamRepository interface {
-	CreateTeam(team *model.Team) (int64, error)
+	CreateTeam(*model.Team) (int64, error)
 	ReadTeams() (*[]model.Team, error)
-	ReadTeamByID(teamId int64) (*model.Team, error)
-	UpdateTeam(team *model.Team) error
-	DeleteTeamByID(teamId int64) error
+	ReadTeamByID(int64) (*model.Team, error)
+	UpdateTeam(*model.Team) error
+	DeleteTeamByID(int64) error
 }
 
 var _ TeamRepository = (*DBService)(nil)
@@ -35,11 +35,10 @@ func (s *DBService) ReadTeams() (*[]model.Team, error) {
 	}
 	for rows.Next() {
 		var r model.Team
-		err := rows.Scan(&r.Id, &r.Name, &r.Password)
-		teams = append(teams, r)
-		if err != nil {
+		if err := rows.Scan(&r.Id, &r.Name, &r.Password); err != nil {
 			return nil, fmt.Errorf("failed reading rows: %v", err)
 		}
+		teams = append(teams, r)
 	}
 	return &teams, nil
 }

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"github.com/go-playground/validator/v10"
 	database "github.com/gonzabosio/res-manager/model/db"
 	"github.com/gonzabosio/res-manager/model/db/repository"
 )
@@ -19,3 +20,5 @@ func NewHandler() (*Handler, error) {
 	h.Service = s
 	return h, nil
 }
+
+var validate = validator.New(validator.WithRequiredStructEnabled())

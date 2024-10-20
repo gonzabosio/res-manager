@@ -7,11 +7,11 @@ import (
 )
 
 type ProjectRepository interface {
-	CreateProject(proj *model.Project) (int64, error)
-	ReadProject(projectId int64) (*model.Project, error)
-	ReadProjectByTeamID(teamId int64) (*[]model.Project, error)
-	UpdateProject(project *model.Project) error
-	DeleteProjectByID(projectId int64) error
+	CreateProject(*model.Project) (int64, error)
+	ReadProject(int64) (*model.Project, error)
+	ReadProjectsByTeamID(int64) (*[]model.Project, error)
+	UpdateProject(*model.Project) error
+	DeleteProjectByID(int64) error
 }
 
 var _ ProjectRepository = (*DBService)(nil)
@@ -34,7 +34,7 @@ func (s *DBService) ReadProject(projectId int64) (*model.Project, error) {
 	return &project, nil
 }
 
-func (s *DBService) ReadProjectByTeamID(teamId int64) (*[]model.Project, error) {
+func (s *DBService) ReadProjectsByTeamID(teamId int64) (*[]model.Project, error) {
 	var projs []model.Project
 	query := "SELECT * FROM public.project WHERE team_id=$1"
 	rows, err := s.DB.Query(query, teamId)
@@ -43,11 +43,10 @@ func (s *DBService) ReadProjectByTeamID(teamId int64) (*[]model.Project, error) 
 	}
 	for rows.Next() {
 		var r model.Project
-		err := rows.Scan(&r.Id, &r.Name, &r.Details, &r.TeamId)
-		projs = append(projs, r)
-		if err != nil {
+		if err := rows.Scan(&r.Id, &r.Name, &r.Details, &r.TeamId); err != nil {
 			return nil, fmt.Errorf("failed reading rows: %v", err)
 		}
+		projs = append(projs, r)
 	}
 	return &projs, nil
 }
