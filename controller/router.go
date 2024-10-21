@@ -31,6 +31,7 @@ func Routing() *chi.Mux {
 	})
 	r.Post("/team", h.CreateTeam)
 	r.Post("/join-team", h.VerifyTeamByName)
+	r.Get("/team", h.GetTeams)
 	r.Patch("/team", h.ModifyTeam)
 	r.Delete("/team/{team-id}", h.DeleteTeam)
 
@@ -50,7 +51,8 @@ func Routing() *chi.Mux {
 	r.Delete("/resource/{resource-id}", h.DeleteResource)
 
 	r.Post("/user", h.CreateUser)
-	r.Get("/user", h.GetUser)
+	r.Post("/login-user", h.LoginUser)
+	r.Get("/user", h.GetUsers)
 	r.Patch("/user", h.ModifyUser)
 	r.Delete("/user/{user-id}", h.DeleteUser)
 

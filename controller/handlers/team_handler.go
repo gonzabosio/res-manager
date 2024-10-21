@@ -27,6 +27,15 @@ func (h *Handler) CreateTeam(w http.ResponseWriter, r *http.Request) {
 		}, http.StatusBadRequest)
 		return
 	}
+	hashedPw, err := hashPassword([]byte(team.Password))
+	if err != nil {
+		writeJSON(w, map[string]string{
+			"message": "Could not hash password",
+			"error":   err.Error(),
+		}, http.StatusInternalServerError)
+		return
+	}
+	team.Password = hashedPw
 	id, err := h.Service.CreateTeam(team)
 	if err != nil {
 		writeJSON(w, map[string]string{
@@ -68,6 +77,26 @@ func (h *Handler) VerifyTeamByName(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]interface{}{
 		"message": "Joined team successfully",
 		"team":    team,
+	}, http.StatusOK)
+}
+
+func (h *Handler) GetTeams(w http.ResponseWriter, r *http.Request) {
+	teams, err := h.Service.ReadTeams()
+	if err != nil {
+		writeJSON(w, map[string]string{
+			"error": err.Error(),
+		}, http.StatusBadRequest)
+		return
+	}
+	if len(*teams) == 0 {
+		writeJSON(w, map[string]string{
+			"message": "No teams found",
+		}, http.StatusOK)
+		return
+	}
+	writeJSON(w, map[string]interface{}{
+		"message": "Teams retrieved successfully",
+		"teams":   teams,
 	}, http.StatusOK)
 }
 

@@ -54,8 +54,8 @@ func (s *DBService) ReadTeamByName(team *model.Team) error {
 		}
 		return err
 	}
-	if team.Password != pw {
-		return fmt.Errorf("invalid team data")
+	if err = comparePassword([]byte(pw), []byte(team.Password)); err != nil {
+		return fmt.Errorf("invalid team data: %v", err)
 	}
 	team.Password = pw
 	return nil

@@ -27,6 +27,15 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		}, http.StatusBadRequest)
 		return
 	}
+	hashedPw, err := hashPassword([]byte(user.Password))
+	if err != nil {
+		writeJSON(w, map[string]string{
+			"message": "Could not hash password",
+			"error":   err.Error(),
+		}, http.StatusInternalServerError)
+		return
+	}
+	user.Password = hashedPw
 	id, err := h.Service.InsertUser(user)
 	if err != nil {
 		writeJSON(w, map[string]interface{}{
@@ -41,7 +50,7 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
-func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	user := new(model.User)
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 		writeJSON(w, map[string]string{
@@ -61,7 +70,7 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 	err := h.Service.VerifyUser(user)
 	if err != nil {
 		writeJSON(w, map[string]string{
-			"message": "Failed reading user",
+			"message": "Failed verifying user",
 			"error":   err.Error(),
 		}, http.StatusBadRequest)
 		return
@@ -69,6 +78,27 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]interface{}{
 		"message": "User logged in successfully",
 		"user":    user,
+	}, http.StatusOK)
+}
+
+func (h *Handler) GetUsers(w http.ResponseWriter, r *http.Request) {
+	users, err := h.Service.ReadUsers()
+	if err != nil {
+		writeJSON(w, map[string]string{
+			"message": "Failed reading users",
+			"error":   err.Error(),
+		}, http.StatusBadRequest)
+		return
+	}
+	if len(*users) == 0 {
+		writeJSON(w, map[string]string{
+			"message": "No users found",
+		}, http.StatusOK)
+		return
+	}
+	writeJSON(w, map[string]interface{}{
+		"message": "Users retrieved successfully",
+		"users":   users,
 	}, http.StatusOK)
 }
 
