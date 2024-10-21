@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"database/sql"
 	"fmt"
 
 	"github.com/gonzabosio/res-manager/model"
@@ -9,7 +10,7 @@ import (
 type TeamRepository interface {
 	CreateTeam(*model.Team) (int64, error)
 	ReadTeams() (*[]model.Team, error)
-	ReadTeamByID(int64) (*model.Team, error)
+	ReadTeamByName(*model.Team) error
 	UpdateTeam(*model.Team) error
 	DeleteTeamByID(int64) error
 }
@@ -43,15 +44,21 @@ func (s *DBService) ReadTeams() (*[]model.Team, error) {
 	return &teams, nil
 }
 
-func (s *DBService) ReadTeamByID(teamId int64) (*model.Team, error) {
-	team := new(model.Team)
-	query := "SELECT * FROM public.team WHERE id=$1"
-	row := s.DB.QueryRow(query, teamId)
-	err := row.Scan(&team.Id, &team.Name, &team.Password)
+func (s *DBService) ReadTeamByName(team *model.Team) error {
+	query := "SELECT id,password FROM public.team WHERE name=$1"
+	var pw string
+	err := s.DB.QueryRow(query, team.Name).Scan(&team.Id, &pw)
 	if err != nil {
-		return nil, err
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("team not found")
+		}
+		return err
 	}
-	return team, nil
+	if team.Password != pw {
+		return fmt.Errorf("invalid team data")
+	}
+	team.Password = pw
+	return nil
 }
 
 func (s *DBService) UpdateTeam(team *model.Team) error {

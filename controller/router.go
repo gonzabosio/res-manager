@@ -30,8 +30,7 @@ func Routing() *chi.Mux {
 		w.Write([]byte("Resources Manager"))
 	})
 	r.Post("/team", h.CreateTeam)
-	r.Get("/team", h.GetTeams)
-	r.Get("/team/{team-id}", h.GetTeamByID)
+	r.Post("/join-team", h.VerifyTeamByName)
 	r.Patch("/team", h.ModifyTeam)
 	r.Delete("/team/{team-id}", h.DeleteTeam)
 

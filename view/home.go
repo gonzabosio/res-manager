@@ -4,6 +4,8 @@ import (
 	"github.com/maxence-charriere/go-app/v10/pkg/app"
 )
 
+var BACK_URL string
+
 type Home struct {
 	app.Compo
 }
