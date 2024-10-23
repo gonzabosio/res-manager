@@ -18,13 +18,23 @@ type TeamRepository interface {
 var _ TeamRepository = (*DBService)(nil)
 
 func (s *DBService) CreateTeam(team *model.Team) (int64, error) {
-	var insertedID int64
-	query := "INSERT INTO public.team(name, password) VALUES($1, $2) RETURNING id"
-	err := s.DB.QueryRow(query, team.Name, team.Password).Scan(&insertedID)
+	query := "SELECT id,password FROM public.team WHERE name=$1"
+	var pw string
+	err := s.DB.QueryRow(query, team.Name).Scan(&team.Id, &pw)
 	if err != nil {
-		return 0, fmt.Errorf("failed team creation: %v", err)
+		if err == sql.ErrNoRows {
+			var insertedID int64
+			insert := "INSERT INTO public.team(name, password) VALUES($1, $2) RETURNING id"
+			err = s.DB.QueryRow(insert, team.Name, team.Password).Scan(&insertedID)
+			if err != nil {
+				return 0, fmt.Errorf("failed team creation: %v", err)
+			}
+			return insertedID, nil
+		} else {
+			return 0, err
+		}
 	}
-	return insertedID, nil
+	return 0, fmt.Errorf("team already exists")
 }
 
 func (s *DBService) ReadTeams() (*[]model.Team, error) {

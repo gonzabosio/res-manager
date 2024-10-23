@@ -4,6 +4,7 @@ type Participant struct {
 	Id     int64 `json:"id,omitempty"`
 	UserId int64 `json:"user_id" validate:"required"`
 	TeamId int64 `json:"team_id" validate:"required"`
+	Admin  bool  `json:"admin" validate:"required"`
 }
 
 type ParticipantResp struct {

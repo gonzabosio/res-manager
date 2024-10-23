@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS team (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(30) NOT NULL,
-    password VARCHAR(30) NOT NULL
+    password VARCHAR(100) NOT NULL
 );

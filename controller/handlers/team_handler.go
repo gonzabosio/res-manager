@@ -76,7 +76,7 @@ func (h *Handler) VerifyTeamByName(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, map[string]interface{}{
 		"message": "Joined team successfully",
-		"team":    team,
+		"team_id": team.Id,
 	}, http.StatusOK)
 }
 
@@ -120,7 +120,7 @@ func (h *Handler) ModifyTeam(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, map[string]interface{}{
 		"message": "Team updated successfully",
-		"team":    team,
+		"team_id": team.Id,
 	}, http.StatusOK)
 }
 

@@ -66,8 +66,8 @@ func (h *Handler) GetProjectsByTeamID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]interface{}{
-		"message": "Projects retrieved successfully",
-		"project": projects,
+		"message":  "Projects retrieved successfully",
+		"projects": projects,
 	}, http.StatusOK)
 }
 func (h *Handler) ModifyProject(w http.ResponseWriter, r *http.Request) {
@@ -98,7 +98,7 @@ func (h *Handler) ModifyProject(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, map[string]interface{}{
 		"message": "Project updated successfully",
-		"team":    project,
+		"project": project,
 	}, http.StatusOK)
 }
 func (h *Handler) DeleteProject(w http.ResponseWriter, r *http.Request) {

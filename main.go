@@ -19,6 +19,7 @@ func main() {
 	app.Route("/create-team", func() app.Composer { return &view.CreateTeam{} })
 	app.Route("/join-team", func() app.Composer { return &view.JoinTeam{} })
 	app.Route("/dashboard", func() app.Composer { return &view.Dashboard{} })
+	app.Route("/dashboard/project", func() app.Composer { return &view.Project{} })
 	app.RunWhenOnBrowser()
 
 	http.Handle("/", &app.Handler{
