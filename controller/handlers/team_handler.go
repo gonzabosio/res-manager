@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -36,6 +37,7 @@ func (h *Handler) CreateTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	team.Password = hashedPw
+	log.Println("hashed password", team.Password)
 	id, err := h.Service.CreateTeam(team)
 	if err != nil {
 		writeJSON(w, map[string]string{
@@ -101,12 +103,20 @@ func (h *Handler) GetTeams(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ModifyTeam(w http.ResponseWriter, r *http.Request) {
-	team := new(model.Team)
+	team := new(model.PatchTeam)
 	err := json.NewDecoder(r.Body).Decode(&team)
 	if err != nil {
 		writeJSON(w, map[string]interface{}{
 			"message": "Invalid team data or bad format",
 			"error":   err.Error(),
+		}, http.StatusBadRequest)
+		return
+	}
+	if err := validate.Struct(team); err != nil {
+		errors := err.(validator.ValidationErrors)
+		writeJSON(w, map[string]string{
+			"message": "Validation error",
+			"error":   errors.Error(),
 		}, http.StatusBadRequest)
 		return
 	}
@@ -120,7 +130,7 @@ func (h *Handler) ModifyTeam(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, map[string]interface{}{
 		"message": "Team updated successfully",
-		"team_id": team.Id,
+		"team":    team,
 	}, http.StatusOK)
 }
 

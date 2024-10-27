@@ -94,7 +94,6 @@ func (j *JoinTeam) joinAction(ctx app.Context, e app.Event) {
 				j.errMessage = "Failed to parse json"
 				return
 			}
-			log.Println("messsage: ", resBody.Message)
 			app.Log(resBody.Err)
 			j.errMessage = resBody.Message
 		}

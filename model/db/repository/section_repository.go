@@ -9,7 +9,7 @@ import (
 type SectionRepository interface {
 	CreateSection(*model.Section) (int64, error)
 	ReadSectionsByProjectID(int64) (*[]model.Section, error)
-	UpdateSection(*model.Section) error
+	UpdateSection(*model.PutSection) error
 	DeleteSectionByID(int64) error
 }
 
@@ -41,7 +41,7 @@ func (s *DBService) ReadSectionsByProjectID(projectId int64) (*[]model.Section, 
 	return &sections, nil
 }
 
-func (s *DBService) UpdateSection(section *model.Section) error {
+func (s *DBService) UpdateSection(section *model.PutSection) error {
 	if err := s.DB.QueryRow("UPDATE public.section SET title=$1 WHERE id=$2 RETURNING title", section.Title, section.Id).Scan(&section.Title); err != nil {
 		return err
 	}

@@ -58,7 +58,7 @@ func (c *CreateTeam) createAction(ctx app.Context, e app.Event) {
 
 		b, err := io.ReadAll(res.Body)
 		if err != nil {
-			log.Println("Failed to send request:", err)
+			log.Println("Failed to read response body:", err)
 			return
 		}
 		if res.StatusCode == http.StatusOK {
@@ -84,7 +84,6 @@ func (c *CreateTeam) createAction(ctx app.Context, e app.Event) {
 				c.errMessage = "Failed to parse json"
 				return
 			}
-			log.Println("messsage: ", resBody.Message)
 			app.Log(resBody.Err)
 			c.errMessage = resBody.Message
 		}

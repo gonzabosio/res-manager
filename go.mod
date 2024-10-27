@@ -14,6 +14,8 @@ require (
 	github.com/lib/pq v1.10.9
 )
 
+require github.com/gonzabosio/gobo-patcher v1.3.7
+
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.3 // indirect

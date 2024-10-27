@@ -71,7 +71,7 @@ func (h *Handler) GetProjectsByTeamID(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 func (h *Handler) ModifyProject(w http.ResponseWriter, r *http.Request) {
-	project := new(model.Project)
+	project := new(model.PatchProject)
 	err := json.NewDecoder(r.Body).Decode(&project)
 	if err != nil {
 		writeJSON(w, map[string]interface{}{

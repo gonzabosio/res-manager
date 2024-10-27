@@ -9,7 +9,7 @@ import (
 type ResourceRepository interface {
 	CreateResource(*model.Resource) (int64, error)
 	ReadResourcesBySectionID(int64) (*[]model.Resource, error)
-	UpdateResource(*model.Resource) error
+	UpdateResource(*model.PatchResource) error
 	DeleteResourceByID(int64) error
 }
 
@@ -41,7 +41,7 @@ func (s *DBService) ReadResourcesBySectionID(sectionId int64) (*[]model.Resource
 	return &resources, nil
 }
 
-func (s *DBService) UpdateResource(res *model.Resource) error {
+func (s *DBService) UpdateResource(res *model.PatchResource) error {
 	if err := s.DB.QueryRow("UPDATE public.resource SET title=$1, content=$2, url=$3 WHERE id=$4 RETURNING title, content, url",
 		res.Title, res.Content, res.URL, res.Id).Scan(&res.Title, &res.Content, &res.URL); err != nil {
 		return err

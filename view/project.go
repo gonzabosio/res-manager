@@ -5,17 +5,20 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/gonzabosio/res-manager/model"
+	"github.com/gonzabosio/res-manager/view/components"
 	"github.com/maxence-charriere/go-app/v10/pkg/app"
 )
 
 type Project struct {
 	app.Compo
-	addSectionForm bool
-	modProjectForm bool
+	components.Sections
+	showAddSectionForm bool
+	modProjectForm     bool
 
 	project             model.Project
 	errMessage          string
@@ -26,15 +29,10 @@ type Project struct {
 }
 
 func (p *Project) OnMount(ctx app.Context) {
-	id := ctx.Page().URL().Query().Get("id")
-	idInt, err := strconv.ParseInt(id, 10, 64)
-	if err != nil {
-		app.Log(err)
+	if err := ctx.SessionStorage().Get("project", &p.project); err != nil {
+		app.Log("Could not get the project from session storage", err)
 	}
-	p.project.Id = idInt
-	p.project.Name = ctx.Page().URL().Query().Get("name")
-	app.Log(fmt.Sprintf("In %v - %v", p.project.Id, p.project.Name))
-	ctx.SessionStorage().Get("project-details", &p.project.Details)
+	app.Log(fmt.Sprintf("In %v", p.project))
 	var teamIDstr string
 	if err := ctx.LocalStorage().Get("teamID", &teamIDstr); err != nil {
 		app.Log("Could not get the team id from local storage", err)
@@ -46,18 +44,17 @@ func (p *Project) OnMount(ctx app.Context) {
 		return
 	}
 	p.project.TeamId = teamID
-	//load sections of project
 }
 
 func (p *Project) Render() app.UI {
 	return app.Div().Body(
 		app.H1().Text(fmt.Sprintf("Project %v", p.project.Name)),
 		app.P().Text(p.project.Details),
-		app.If(p.addSectionForm, func() app.UI {
+		app.If(p.showAddSectionForm, func() app.UI {
 			return app.Div().Body(
 				app.Input().Type("text").Placeholder("Title").Value(p.sectionTitleField).OnChange(p.ValueTo(&p.sectionTitleField)),
 				app.Button().Text("Add").OnClick(p.addNewSection),
-				app.Button().Text("Cancel").OnClick(p.toggleSectionForm),
+				app.Button().Text("Cancel").OnClick(p.toggleAddSectionForm),
 				app.P().Text(p.errMessage),
 			)
 		}).ElseIf(p.modProjectForm, func() app.UI {
@@ -74,7 +71,8 @@ func (p *Project) Render() app.UI {
 				app.Button().Text("Delete project").OnClick(p.deleteProject),
 				app.P().Text(p.errMessage),
 				app.P().Text("Sections"),
-				app.Button().Text("Add section").OnClick(p.toggleSectionForm),
+				app.Button().Text("Add section").OnClick(p.toggleAddSectionForm),
+				&p.Sections,
 			)
 		}),
 	)
@@ -117,9 +115,15 @@ func (p *Project) modifyProject(ctx app.Context, e app.Event) {
 			p.errMessage = "Could not parse the project modifications"
 			return
 		}
-		app.Log("New project", body.Project)
+		app.Log("Project modified", body.Project)
 		p.project = body.Project
-		ctx.Update()
+		url := url.URL{
+			Path: "/dashboard/project",
+			// RawQuery: fmt.Sprintf("id=%d&name=%s", p.project.Id, p.project.Name),
+		}
+		ctx.Page().ReplaceURL(&url)
+		ctx.SessionStorage().Set("project", p.project)
+		p.errMessage = ""
 		p.projectNameField = ""
 		p.projectDetailsField = ""
 		p.modProjectForm = false
@@ -130,8 +134,8 @@ func (p *Project) modifyProject(ctx app.Context, e app.Event) {
 			p.errMessage = "Could not parse the project modifications"
 			return
 		}
-		app.Log(body)
-		p.errMessage = "Could not modify the project"
+		app.Log(body.Err)
+		p.errMessage = body.Message
 	}
 }
 
@@ -142,33 +146,56 @@ func (p *Project) deleteProject(ctx app.Context, e app.Event) {
 		http.MethodDelete, fmt.Sprintf("%v/project/%v", app.Getenv("BACK_URL"), p.project.Id), nil,
 	)
 	if err != nil {
-		p.errMessage = "Failed creating request to delete project"
+		p.errMessage = "Failed to create request to delete project"
 		return
 	}
 	res, err := client.Do(req)
 	if err != nil {
 		app.Log(err)
-		p.errMessage = "Failed deleting project"
+		p.errMessage = "Failed to delete project"
 		return
 	}
 	if res.StatusCode == http.StatusOK {
 		ctx.Navigate("dashboard")
 	} else {
 		app.Log(err)
-		p.errMessage = "Failed deleting project"
+		p.errMessage = "Failed to delete project"
 	}
 }
 
 func (p *Project) toggleProjectForm(ctx app.Context, e app.Event) {
 	p.projectNameField = ""
 	p.projectDetailsField = ""
+	p.errMessage = ""
 	p.modProjectForm = !p.modProjectForm
 }
 
-func (p *Project) toggleSectionForm(ctx app.Context, e app.Event) {
-	p.addSectionForm = !p.addSectionForm
+func (p *Project) toggleAddSectionForm(ctx app.Context, e app.Event) {
+	p.sectionTitleField = ""
+	p.errMessage = ""
+	p.showAddSectionForm = !p.showAddSectionForm
 }
 
 func (p *Project) addNewSection(ctx app.Context, e app.Event) {
-	p.addSectionForm = !p.addSectionForm
+	if p.sectionTitleField == "" {
+		p.errMessage = "The field is empty"
+		return
+	}
+	app.Log(fmt.Sprintf("Title: %v\nProjectID: %v", p.sectionTitleField, p.project.Id))
+	res, err := http.Post(app.Getenv("BACK_URL")+"/section", "application/json",
+		strings.NewReader(fmt.Sprintf(
+			`{"title":"%v","project_id":%d}`,
+			p.sectionTitleField, p.project.Id)))
+	if err != nil {
+		app.Log(err)
+		p.errMessage = "Failed adding new section"
+		return
+	}
+	if res.StatusCode == http.StatusOK {
+		p.sectionTitleField = ""
+		p.errMessage = ""
+		p.showAddSectionForm = false
+	} else {
+		p.errMessage = "Could not add the section"
+	}
 }

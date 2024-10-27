@@ -72,12 +72,20 @@ func (h *Handler) GetResourcesBySectionID(w http.ResponseWriter, r *http.Request
 }
 
 func (h *Handler) ModifyResource(w http.ResponseWriter, r *http.Request) {
-	resource := new(model.Resource)
+	resource := new(model.PatchResource)
 	err := json.NewDecoder(r.Body).Decode(&resource)
 	if err != nil {
 		writeJSON(w, map[string]interface{}{
 			"message": "Invalid resource data or bad format",
 			"error":   err.Error(),
+		}, http.StatusBadRequest)
+		return
+	}
+	if err = validate.Struct(resource); err != nil {
+		errors := err.(validator.ValidationErrors)
+		writeJSON(w, map[string]string{
+			"message": "Validation error",
+			"error":   errors.Error(),
 		}, http.StatusBadRequest)
 		return
 	}

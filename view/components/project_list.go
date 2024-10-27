@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -53,15 +52,12 @@ func (p *ProjectList) OnMount(ctx app.Context) {
 		p.errMessage = "Failed reading projects"
 		return
 	}
-	app.Log(string(b))
 	if res.StatusCode == http.StatusOK {
 		var resBody projectResponse
-		err = json.Unmarshal(b, &resBody)
-		if err != nil {
+		if err = json.Unmarshal(b, &resBody); err != nil {
 			app.Log(err)
 			p.errMessage = "Failed parsing projects data"
 		}
-		log.Println("Response body:", resBody)
 		p.projectlist = resBody.Projects
 	}
 }
@@ -87,10 +83,11 @@ func (p *ProjectList) Render() app.UI {
 				app.Button().Text("Add Project").OnClick(p.switchFormView),
 				app.Range(p.projectlist).Slice(func(i int) app.UI {
 					return app.Div().Body(
-						app.A().Text(p.projectlist[i].Name).Href(fmt.Sprintf("/dashboard/project?id=%d&name=%s", p.projectlist[i].Id, p.projectlist[i].Name)).OnClick(func(ctx app.Context, e app.Event) {
+						app.A().Text(p.projectlist[i].Name).Href("/dashboard/project").OnClick(func(ctx app.Context, e app.Event) {
 							app.Log(p.projectlist[i].Id, p.projectlist[i].Name)
-							ctx.SessionStorage().Set("project-details", p.projectlist[i].Details)
+							ctx.SessionStorage().Set("project", p.projectlist[i])
 						}),
+						// Href(fmt.Sprintf("/dashboard/project?id=%d&name=%s", p.projectlist[i].Id, p.projectlist[i].Name))
 					)
 				}),
 				app.P().Text(p.errMessage),
@@ -100,12 +97,15 @@ func (p *ProjectList) Render() app.UI {
 }
 
 func (p *ProjectList) switchFormView(ctx app.Context, e app.Event) {
+	p.newProjectName = ""
+	p.newProjectDetails = ""
+	p.errMessage = ""
 	p.showAddProjectForm = !p.showAddProjectForm
 }
 
 func (p *ProjectList) addProject(ctx app.Context, e app.Event) {
 	if p.newProjectName == "" || p.newProjectDetails == "" {
-		p.errMessage = "All field must be filled"
+		p.errMessage = "All fields must be filled"
 		return
 	}
 	app.Log(fmt.Sprintf("Name: %v\nDetails: %v\nTeamID: %v", p.newProjectName, p.newProjectDetails, p.teamID))
@@ -118,22 +118,13 @@ func (p *ProjectList) addProject(ctx app.Context, e app.Event) {
 		p.errMessage = "Failed adding new project"
 		return
 	}
-	b, err := io.ReadAll(res.Body)
-	if err != nil {
-		app.Log(err)
-		p.errMessage = "Failed adding new project"
-		return
-	}
 	if res.StatusCode == http.StatusOK {
-		app.Log(string(b))
 		p.newProjectName = ""
 		p.newProjectDetails = ""
+		p.errMessage = ""
 		p.showAddProjectForm = false
+		ctx.Reload()
 	} else {
 		p.errMessage = "Could not add the project"
 	}
 }
-
-// func (p *ProjectList) projectInfo(ctx app.Context, e app.Event) {
-// 	app.Log()
-// }

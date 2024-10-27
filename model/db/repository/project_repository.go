@@ -1,8 +1,10 @@
 package repository
 
 import (
+	"encoding/json"
 	"fmt"
 
+	"github.com/gonzabosio/gobo-patcher"
 	"github.com/gonzabosio/res-manager/model"
 )
 
@@ -10,7 +12,7 @@ type ProjectRepository interface {
 	CreateProject(*model.Project) (int64, error)
 	ReadProject(int64) (*model.Project, error)
 	ReadProjectsByTeamID(int64) (*[]model.Project, error)
-	UpdateProject(*model.Project) error
+	UpdateProject(*model.PatchProject) error
 	DeleteProjectByID(int64) error
 }
 
@@ -51,10 +53,24 @@ func (s *DBService) ReadProjectsByTeamID(teamId int64) (*[]model.Project, error)
 	return &projs, nil
 }
 
-func (s *DBService) UpdateProject(project *model.Project) error {
-	row := s.DB.QueryRow("UPDATE public.project SET name=$1, details=$2 WHERE id=$3 RETURNING name,details", project.Name, project.Details, project.Id)
-	err := row.Scan(&project.Name, &project.Details)
+func (s *DBService) UpdateProject(project *model.PatchProject) error {
+	origProject := model.Project{}
+	s.DB.QueryRow("SELECT * FROM public.project WHERE id=$1", project.Id).
+		Scan(&origProject.Id, &origProject.Name, &origProject.Details, &origProject.TeamId)
+	orB, err := json.Marshal(origProject)
 	if err != nil {
+		return fmt.Errorf("could not parse project struct to json: %v", err)
+	}
+	newB, err := json.Marshal(project)
+	if err != nil {
+		return fmt.Errorf("could not parse project struct to json: %v", err)
+	}
+	query, err := gobo.PatchWithQuery(orB, newB, "public.project", "id", true, nil)
+	if err != nil {
+		return err
+	}
+	q := fmt.Sprintf("%v RETURNING name,details", query)
+	if err = s.DB.QueryRow(q).Scan(&project.Name, &project.Details); err != nil {
 		return err
 	}
 	return nil

@@ -72,7 +72,7 @@ func (h *Handler) GetSectionsByProjectID(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) ModifySection(w http.ResponseWriter, r *http.Request) {
-	section := new(model.Section)
+	section := new(model.PutSection)
 	err := json.NewDecoder(r.Body).Decode(&section)
 	if err != nil {
 		writeJSON(w, map[string]interface{}{

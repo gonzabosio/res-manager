@@ -2,8 +2,11 @@ package repository
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"log"
 
+	"github.com/gonzabosio/gobo-patcher"
 	"github.com/gonzabosio/res-manager/model"
 )
 
@@ -11,7 +14,7 @@ type TeamRepository interface {
 	CreateTeam(*model.Team) (int64, error)
 	ReadTeams() (*[]model.Team, error)
 	ReadTeamByName(*model.Team) error
-	UpdateTeam(*model.Team) error
+	UpdateTeam(*model.PatchTeam) error
 	DeleteTeamByID(int64) error
 }
 
@@ -25,6 +28,7 @@ func (s *DBService) CreateTeam(team *model.Team) (int64, error) {
 		if err == sql.ErrNoRows {
 			var insertedID int64
 			insert := "INSERT INTO public.team(name, password) VALUES($1, $2) RETURNING id"
+			log.Println("password inserted", team.Password)
 			err = s.DB.QueryRow(insert, team.Name, team.Password).Scan(&insertedID)
 			if err != nil {
 				return 0, fmt.Errorf("failed team creation: %v", err)
@@ -71,10 +75,25 @@ func (s *DBService) ReadTeamByName(team *model.Team) error {
 	return nil
 }
 
-func (s *DBService) UpdateTeam(team *model.Team) error {
-	row := s.DB.QueryRow("UPDATE public.team SET name=$1, password=$2 WHERE id=$3 RETURNING name,password", team.Name, team.Password, team.Id)
-	err := row.Scan(&team.Name, &team.Password)
+func (s *DBService) UpdateTeam(team *model.PatchTeam) error {
+	origTeam := model.Team{}
+	s.DB.QueryRow("SELECT * FROM public.team WHERE id=$1", team.Id).
+		Scan(&origTeam.Id, &origTeam.Name, &origTeam.Password)
+	orB, err := json.Marshal(origTeam)
 	if err != nil {
+		return fmt.Errorf("could not parse project struct to json: %v", err)
+	}
+	newB, err := json.Marshal(team)
+	if err != nil {
+		return fmt.Errorf("could not parse team struct to json: %v", err)
+	}
+	log.Println(string(orB), string(newB))
+	query, err := gobo.PatchWithQuery(orB, newB, "public.team", "id", true, nil)
+	if err != nil {
+		return err
+	}
+	q := fmt.Sprintf("%v RETURNING name, password", query)
+	if err = s.DB.QueryRow(q).Scan(&team.Name, &team.Password); err != nil {
 		return err
 	}
 	return nil
