@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS participant(
     id BIGSERIAL PRIMARY KEY,
+    "admin" BOOLEAN NOT NULL,
     user_id BIGINT NOT NULL,
     team_id BIGINT NOT NULL,
     CONSTRAINT participant_user_id_fk FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE,

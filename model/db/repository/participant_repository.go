@@ -1,39 +1,45 @@
 package repository
 
 import (
+	"database/sql"
 	"fmt"
 
 	"github.com/gonzabosio/res-manager/model"
 )
 
 type ParticipantRepository interface {
-	InsertParticipant(*model.Participant) (int64, error)
-	ReadParticipants(int64) (*[]model.ParticipantResp, error)
+	RegisterParticipant(*model.Participant) (bool, error)
+	ReadParticipants(int64) (*[]model.ParticipantsResp, error)
 	DeleteParticipantByID(int64) error
 }
 
 var _ ParticipantRepository = (*DBService)(nil)
 
-func (s *DBService) InsertParticipant(participant *model.Participant) (int64, error) {
-	var insertedID int64
-	query := "INSERT INTO public.participant(user_id, team_id) VALUES($1, $2) RETURNING id"
-	err := s.DB.QueryRow(query, participant.UserId, participant.TeamId).Scan(&insertedID)
-	if err != nil {
-		return 0, fmt.Errorf("failed participant creation: %v", err)
+func (s *DBService) RegisterParticipant(participant *model.Participant) (wasInserted bool, err error) {
+	if err := s.DB.QueryRow("SELECT id, admin FROM public.participant WHERE user_id=$1 AND team_id=$2",
+		participant.UserId, participant.TeamId,
+	).Scan(&participant.Id, participant.Admin); err != nil {
+		if err == sql.ErrNoRows {
+			query := "INSERT INTO public.participant(admin, user_id, team_id) VALUES($1, $2, $3) RETURNING id"
+			if err := s.DB.QueryRow(query, participant.Admin, participant.UserId, participant.TeamId).Scan(&participant.Id); err != nil {
+				return false, fmt.Errorf("failed participant creation: %v", err)
+			}
+			return true, nil
+		}
 	}
-	return insertedID, nil
+	return false, nil
 }
 
-func (s *DBService) ReadParticipants(teamId int64) (*[]model.ParticipantResp, error) {
-	var participants []model.ParticipantResp
-	query := `SELECT p.id, u.username FROM participant p JOIN "user" u ON p.user_id = u.id WHERE p.team_id = $1`
+func (s *DBService) ReadParticipants(teamId int64) (*[]model.ParticipantsResp, error) {
+	var participants []model.ParticipantsResp
+	query := `SELECT p.id, p.admin, u.username FROM participant p JOIN "user" u ON p.user_id = u.id WHERE p.team_id = $1`
 	rows, err := s.DB.Query(query, teamId)
 	if err != nil {
 		return nil, fmt.Errorf("failed getting participants: %v", err)
 	}
 	for rows.Next() {
-		var r model.ParticipantResp
-		if err := rows.Scan(&r.Id, &r.Username); err != nil {
+		var r model.ParticipantsResp
+		if err := rows.Scan(&r.Id, &r.Admin, &r.Username); err != nil {
 			return nil, fmt.Errorf("failed reading rows: %v", err)
 		}
 		participants = append(participants, r)

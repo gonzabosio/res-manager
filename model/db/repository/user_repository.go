@@ -8,7 +8,7 @@ import (
 )
 
 type UserRepository interface {
-	InsertUser(*model.User) (int64, error)
+	InsertOrGetUser(*model.User) (bool, error)
 	VerifyUser(*model.User) error
 	UpdateUser(*model.User) error
 	DeleteUserByID(int64) error
@@ -16,33 +16,31 @@ type UserRepository interface {
 
 var _ UserRepository = (*DBService)(nil)
 
-func (s *DBService) InsertUser(user *model.User) (int64, error) {
-	var username string
-	queryDupl := "SELECT username FROM public.user WHERE username=$1"
-	err := s.DB.QueryRow(queryDupl, user.Username).Scan(&username)
+func (s *DBService) InsertOrGetUser(user *model.User) (wasInserted bool, err error) {
+	queryDuplEmail := "SELECT id, username FROM public.user WHERE email=$1"
+	err = s.DB.QueryRow(queryDuplEmail, user.Email).Scan(&user.Id, &user.Username)
 	if err == sql.ErrNoRows {
-		var insertedID int64
-		query := "INSERT INTO public.user(username, password, email) VALUES($1, $2, $3) RETURNING id"
-		err = s.DB.QueryRow(query, user.Username, user.Password, user.Email).Scan(&insertedID)
+		query := "INSERT INTO public.user(username, email) VALUES($1, $2) RETURNING id"
+		err = s.DB.QueryRow(query, user.Username, user.Email).Scan(&user.Id)
 		if err != nil {
-			return 0, fmt.Errorf("failed user creation: %v", err)
+			return false, fmt.Errorf("failed user creation: %v", err)
 		}
-		return insertedID, nil
+		return true, nil
 	} else {
-		return 0, fmt.Errorf("username already exists")
+		return false, nil
 	}
-
 }
+
 func (s *DBService) VerifyUser(user *model.User) error {
-	query := `SELECT * FROM public.user WHERE username=$1`
-	var pw string
-	err := s.DB.QueryRow(query, user.Username).Scan(&user.Id, &user.Username, &pw, &user.Email)
-	if err != nil {
-		return err
-	}
-	if err = comparePassword([]byte(pw), []byte(user.Password)); err != nil {
-		return fmt.Errorf("invalid user data: %v", err)
-	}
+	// 	query := `SELECT * FROM public.user WHERE username=$1`
+	// 	var pw string
+	// 	err := s.DB.QueryRow(query, user.Username).Scan(&user.Id, &user.Username, &pw, &user.Email)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	if err = comparePassword([]byte(pw), []byte(user.Password)); err != nil {
+	// 		return fmt.Errorf("invalid user data: %v", err)
+	// 	}
 	return nil
 }
 
@@ -55,20 +53,20 @@ func (s *DBService) ReadUsers() (*[]model.User, error) {
 	}
 	for rows.Next() {
 		var r model.User
-		if err := rows.Scan(&r.Id, &r.Username, &r.Password, &r.Email); err != nil {
-			return nil, fmt.Errorf("failed reading rows: %v", err)
-		}
+		// if err := rows.Scan(&r.Id, &r.Username, &r.Password, &r.Email); err != nil {
+		// 	return nil, fmt.Errorf("failed reading rows: %v", err)
+		// }
 		users = append(users, r)
 	}
 	return &users, nil
 }
 
 func (s *DBService) UpdateUser(user *model.User) error {
-	row := s.DB.QueryRow("UPDATE public.user SET username=$1, password=$2 WHERE id=$3 RETURNING username,password,email", user.Username, user.Password, user.Id)
-	err := row.Scan(&user.Username, &user.Password, &user.Email)
-	if err != nil {
-		return err
-	}
+	// row := s.DB.QueryRow("UPDATE public.user SET username=$1, password=$2 WHERE id=$3 RETURNING username,password,email", user.Username, user.Password, user.Id)
+	// err := row.Scan(&user.Username, &user.Password, &user.Email)
+	// if err != nil {
+	// 	return err
+	// }
 	return nil
 }
 
