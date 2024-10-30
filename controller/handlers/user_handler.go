@@ -126,29 +126,29 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
-func (h *Handler) GetUsers(w http.ResponseWriter, r *http.Request) {
-	users, err := h.Service.ReadUsers()
-	if err != nil {
-		WriteJSON(w, map[string]string{
-			"message": "Failed reading users",
-			"error":   err.Error(),
-		}, http.StatusBadRequest)
-		return
-	}
-	if len(*users) == 0 {
-		WriteJSON(w, map[string]string{
-			"message": "No users found",
-		}, http.StatusOK)
-		return
-	}
-	WriteJSON(w, map[string]interface{}{
-		"message": "Users retrieved successfully",
-		"users":   users,
-	}, http.StatusOK)
-}
+// func (h *Handler) GetUsers(w http.ResponseWriter, r *http.Request) {
+// 	users, err := h.Service.ReadUsers()
+// 	if err != nil {
+// 		WriteJSON(w, map[string]string{
+// 			"message": "Failed reading users",
+// 			"error":   err.Error(),
+// 		}, http.StatusBadRequest)
+// 		return
+// 	}
+// 	if len(*users) == 0 {
+// 		WriteJSON(w, map[string]string{
+// 			"message": "No users found",
+// 		}, http.StatusOK)
+// 		return
+// 	}
+// 	WriteJSON(w, map[string]interface{}{
+// 		"message": "Users retrieved successfully",
+// 		"users":   users,
+// 	}, http.StatusOK)
+// }
 
 func (h *Handler) ModifyUser(w http.ResponseWriter, r *http.Request) {
-	user := new(model.User)
+	user := new(model.PatchUser)
 	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
 		WriteJSON(w, map[string]interface{}{

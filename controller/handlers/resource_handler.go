@@ -27,7 +27,7 @@ func (h *Handler) CreateResource(w http.ResponseWriter, r *http.Request) {
 		}, http.StatusBadRequest)
 		return
 	}
-	id, err := h.Service.CreateResource(resource)
+	err := h.Service.CreateResource(resource)
 	if err != nil {
 		WriteJSON(w, map[string]interface{}{
 			"message": "Failed resource creation",
@@ -36,8 +36,8 @@ func (h *Handler) CreateResource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	WriteJSON(w, map[string]interface{}{
-		"message":     "Resource created successfully",
-		"resource_id": id,
+		"message":  "Resource created successfully",
+		"resource": resource,
 	}, http.StatusOK)
 }
 

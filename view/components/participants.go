@@ -18,6 +18,8 @@ type ParticipantsList struct {
 	errMessage   string
 	accessToken  string
 	teamId       int64
+	user         model.User
+	admin        bool
 }
 
 type participantsResponse struct {
@@ -26,6 +28,13 @@ type participantsResponse struct {
 }
 
 func (p *ParticipantsList) OnMount(ctx app.Context) {
+	if err := ctx.SessionStorage().Get("user", &p.user); err != nil {
+		app.Log("Could not get the user data from session storage")
+	}
+	if err := ctx.SessionStorage().Get("admin", &p.admin); err != nil {
+		app.Log("Could not get the admin data from session storage")
+	}
+	app.Log(p.admin)
 	atCookie := app.Window().Call("getAccessTokenCookie")
 	app.Log("access token", atCookie.String())
 	if atCookie.IsUndefined() {
@@ -92,10 +101,31 @@ func (p *ParticipantsList) Render() app.UI {
 				app.If(!p.participants[i].Admin, func() app.UI {
 					return app.P().Text(p.participants[i].Username)
 				}).Else(func() app.UI {
-					return app.P().Text(fmt.Sprintf("%v - Admin", p.participants[i].Username))
+					return app.Div().Body(
+						app.P().Text(fmt.Sprintf("%v - Admin", p.participants[i].Username)),
+					)
+				}),
+				app.If(p.participants[i].UserId != p.user.Id && p.admin, func() app.UI {
+					return app.Div().Body(
+						app.Button().Text("Delete").OnClick(func(ctx app.Context, e app.Event) {
+							p.deleteParticipant(ctx, e, p.participants[i].UserId, p.teamId)
+						}),
+						app.If(!p.participants[i].Admin, func() app.UI {
+							return app.Button().Text("Give Admin").OnClick(func(ctx app.Context, e app.Event) {
+								p.giveAdmin(ctx, e, p.participants[i].UserId, p.teamId)
+							})
+						}),
+					)
 				}),
 			)
-			// consider user role to show actions(remove user, give admin)
 		}),
 	)
+}
+
+func (p *ParticipantsList) deleteParticipant(ctx app.Context, e app.Event, userId, teamId int64) {
+	//delete participant by user id and team id
+}
+
+func (p *ParticipantsList) giveAdmin(ctx app.Context, e app.Event, userId, teamId int64) {
+	//give admin to the participant selected
 }

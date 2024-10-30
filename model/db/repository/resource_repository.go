@@ -2,12 +2,13 @@ package repository
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gonzabosio/res-manager/model"
 )
 
 type ResourceRepository interface {
-	CreateResource(*model.Resource) (int64, error)
+	CreateResource(*model.Resource) error
 	ReadResourcesBySectionID(int64) (*[]model.Resource, error)
 	UpdateResource(*model.PatchResource) error
 	DeleteResourceByID(int64) error
@@ -15,13 +16,14 @@ type ResourceRepository interface {
 
 var _ ResourceRepository = (*DBService)(nil)
 
-func (s *DBService) CreateResource(res *model.Resource) (int64, error) {
-	var insertedID int64
-	query := "INSERT INTO public.resource(title, content, url, section_id) VALUES($1, $2, $3, $4) RETURNING id"
-	if err := s.DB.QueryRow(query, res.Title, res.Content, res.URL, res.SectionId).Scan(&insertedID); err != nil {
-		return 0, err
+func (s *DBService) CreateResource(res *model.Resource) error {
+	query := "INSERT INTO public.resource(title, content, url, last_edition_at, last_edition_by, section_id) VALUES($1, $2, $3, $4, $5, $6) RETURNING id"
+	now := time.Now()
+	res.LastEditionAt = now
+	if err := s.DB.QueryRow(query, res.Title, res.Content, res.URL, now, res.LastEditionBy, res.SectionId).Scan(&res.Id); err != nil {
+		return err
 	}
-	return insertedID, nil
+	return nil
 }
 
 func (s *DBService) ReadResourcesBySectionID(sectionId int64) (*[]model.Resource, error) {
@@ -33,7 +35,7 @@ func (s *DBService) ReadResourcesBySectionID(sectionId int64) (*[]model.Resource
 	}
 	for rows.Next() {
 		var r model.Resource
-		if err := rows.Scan(&r.Id, &r.Title, &r.Content, &r.URL, &r.SectionId); err != nil {
+		if err := rows.Scan(&r.Id, &r.Title, &r.Content, &r.URL, &r.Images, &r.LastEditionAt, &r.LastEditionBy, &r.SectionId); err != nil {
 			return nil, fmt.Errorf("failed reading rows: %v", err)
 		}
 		resources = append(resources, r)
@@ -42,8 +44,8 @@ func (s *DBService) ReadResourcesBySectionID(sectionId int64) (*[]model.Resource
 }
 
 func (s *DBService) UpdateResource(res *model.PatchResource) error {
-	if err := s.DB.QueryRow("UPDATE public.resource SET title=$1, content=$2, url=$3 WHERE id=$4 RETURNING title, content, url",
-		res.Title, res.Content, res.URL, res.Id).Scan(&res.Title, &res.Content, &res.URL); err != nil {
+	if err := s.DB.QueryRow("UPDATE public.resource SET title=$1, content=$2, url=$3, last_edition_at=$4, last_edition_by=$5 WHERE id=$6 RETURNING title, content, url, last_edition_at, section_id",
+		res.Title, res.Content, res.URL, time.Now(), res.LastEditionBy, res.Id).Scan(&res.Title, &res.Content, &res.URL, &res.LastEditionAt, &res.SectionId); err != nil {
 		return err
 	}
 	return nil

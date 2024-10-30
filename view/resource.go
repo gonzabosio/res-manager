@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gonzabosio/res-manager/model"
@@ -21,11 +22,23 @@ type Resource struct {
 	urlChanges     string
 
 	errMessage string
+	user       model.User
 	resource   model.Resource
 	project    model.Project
+
+	accessToken string
 }
 
 func (r *Resource) OnMount(ctx app.Context) {
+	if err := ctx.SessionStorage().Get("user", &r.user); err != nil {
+		app.Log("Could not get user data from session storage")
+	}
+	atCookie := app.Window().Call("getAccessTokenCookie")
+	if atCookie.IsUndefined() {
+		ctx.Navigate("/")
+	} else {
+		r.accessToken = atCookie.String()
+	}
 	if err := ctx.SessionStorage().Get("project", &r.project); err != nil {
 		app.Log(fmt.Sprintf("Could not get resource data: %v", err))
 	}
@@ -77,6 +90,8 @@ func (r *Resource) deleteResource(ctx app.Context, e app.Event) {
 		r.errMessage = "Failed creating request to delete resource"
 		return
 	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.accessToken))
+	req.Header.Add("Content-Type", "application/json")
 	res, err := client.Do(req)
 	app.Log(res.Body)
 	if err != nil {
@@ -86,7 +101,6 @@ func (r *Resource) deleteResource(ctx app.Context, e app.Event) {
 	}
 	if res.StatusCode == http.StatusOK {
 		app.Log("Resource deleted successfully")
-		// ctx.SessionStorage().Set("project", r.project)
 		ctx.Navigate("dashboard/project")
 	} else {
 		app.Log(err)
@@ -95,13 +109,11 @@ func (r *Resource) deleteResource(ctx app.Context, e app.Event) {
 }
 
 type resourceResponse struct {
-	Message  string              `json:"message"`
-	Resource model.PatchResource `json:"resource"`
+	Message  string         `json:"message"`
+	Resource model.Resource `json:"resource"`
 }
 
 func (r *Resource) editResource(ctx app.Context, e app.Event) {
-	app.Log(r.titleChanges, r.contentChanges)
-	//save new resource in session storage
 	if r.titleChanges == "" {
 		r.errMessage = "Title can't be empty"
 		return
@@ -113,8 +125,9 @@ func (r *Resource) editResource(ctx app.Context, e app.Event) {
 			return
 		}
 	}
-	reqBody = fmt.Sprintf(`{"id":%v, "title":"%v", "content":"%v", "url":"%v"}`,
-		r.resource.Id, r.titleChanges, r.contentChanges, r.urlChanges,
+	app.Log(r.titleChanges, r.contentChanges, r.urlChanges, time.Now(), r.user.Username)
+	reqBody = fmt.Sprintf(`{"id":%v, "title":"%v", "content":"%v", "url":"%v", "last_edition_at":"%v", "last_edition_by":"%v"}`,
+		r.resource.Id, r.titleChanges, r.contentChanges, r.urlChanges, time.Now(), r.user.Username,
 	)
 	req, err := http.NewRequest(http.MethodPatch, fmt.Sprintf("%v/resource", app.Getenv("BACK_URL")), strings.NewReader(reqBody))
 	if err != nil {
@@ -122,6 +135,8 @@ func (r *Resource) editResource(ctx app.Context, e app.Event) {
 		r.errMessage = "Failed modifying resource"
 		return
 	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.accessToken))
+	req.Header.Add("Content-Type", "application/json")
 	client := http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
@@ -141,9 +156,9 @@ func (r *Resource) editResource(ctx app.Context, e app.Event) {
 			r.errMessage = "Could not parse the resource modifications"
 			return
 		}
-		body.Resource.SectionId = r.resource.SectionId
-		app.Log("Resource modified", body.Resource)
-		ctx.SessionStorage().Set("resource", body.Resource)
+		r.resource = body.Resource
+		app.Log("Resource modified", r.resource)
+		ctx.SessionStorage().Set("resource", r.resource)
 		r.errMessage = ""
 		r.resource.Title = r.titleChanges
 		r.resource.Content = r.contentChanges

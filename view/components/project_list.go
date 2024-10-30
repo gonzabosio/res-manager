@@ -22,14 +22,22 @@ type ProjectList struct {
 
 	teamID     int64
 	errMessage string
+
+	accessToken string
 }
 
-type projectResponse struct {
+type projectsResponse struct {
 	Message  string          `json:"message"`
 	Projects []model.Project `json:"projects"`
 }
 
 func (p *ProjectList) OnMount(ctx app.Context) {
+	atCookie := app.Window().Call("getAccessTokenCookie")
+	if atCookie.IsUndefined() {
+		ctx.Navigate("/")
+	} else {
+		p.accessToken = atCookie.String()
+	}
 	var teamIDstr string
 	if err := ctx.LocalStorage().Get("teamID", &teamIDstr); err != nil {
 		app.Log("Could not get the team id from local storage", err)
@@ -41,7 +49,15 @@ func (p *ProjectList) OnMount(ctx app.Context) {
 		return
 	}
 	p.teamID = teamID
-	res, err := http.Get(fmt.Sprintf("%v/project/%v", app.Getenv("BACK_URL"), p.teamID))
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%v/project/%v", app.Getenv("BACK_URL"), p.teamID), nil)
+	if err != nil {
+		p.errMessage = "Could not load the projects"
+		app.Log(err)
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", p.accessToken))
+	req.Header.Add("Content-Type", "application/json")
+	client := http.Client{}
+	res, err := client.Do(req)
 	if err != nil {
 		p.errMessage = fmt.Sprintf("Failed getting projects: %v", err)
 		return
@@ -53,7 +69,7 @@ func (p *ProjectList) OnMount(ctx app.Context) {
 		return
 	}
 	if res.StatusCode == http.StatusOK {
-		var resBody projectResponse
+		var resBody projectsResponse
 		if err = json.Unmarshal(b, &resBody); err != nil {
 			app.Log(err)
 			p.errMessage = "Failed parsing projects data"
@@ -109,22 +125,53 @@ func (p *ProjectList) addProject(ctx app.Context, e app.Event) {
 		return
 	}
 	app.Log(fmt.Sprintf("Name: %v\nDetails: %v\nTeamID: %v", p.newProjectName, p.newProjectDetails, p.teamID))
-	res, err := http.Post(app.Getenv("BACK_URL")+"/project", "application/json",
-		strings.NewReader(fmt.Sprintf(
-			`{"name":"%v","details":"%v","team_id":%d}`,
-			p.newProjectName, p.newProjectDetails, p.teamID)))
+	req, err := http.NewRequest(http.MethodPost, app.Getenv("BACK_URL")+"/project", strings.NewReader(fmt.Sprintf(
+		`{"name":"%v","details":"%v","team_id":%d}`,
+		p.newProjectName, p.newProjectDetails, p.teamID)),
+	)
+	if err != nil {
+		p.errMessage = "Could not add the project"
+		app.Log(err)
+		return
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", p.accessToken))
+	req.Header.Add("Content-Type", "application/json")
+	client := http.Client{}
+	res, err := client.Do(req)
 	if err != nil {
 		app.Log(err)
 		p.errMessage = "Failed adding new project"
 		return
 	}
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		p.errMessage = "Failed to read project data"
+		app.Log(err)
+		return
+	}
 	if res.StatusCode == http.StatusOK {
+		var resBody projectsResponse
+		err := json.Unmarshal(b, &resBody)
+		if err != nil {
+			p.errMessage = "Failed to parse project data"
+			app.Log(err)
+			return
+		}
 		p.newProjectName = ""
 		p.newProjectDetails = ""
 		p.errMessage = ""
+		p.projectlist = resBody.Projects
 		p.showAddProjectForm = false
 		ctx.Reload()
 	} else {
-		p.errMessage = "Could not add the project"
+		var resBody errResponseBody
+		err := json.Unmarshal(b, &resBody)
+		if err != nil {
+			p.errMessage = "Failed to parse project data"
+			app.Log(err)
+			return
+		}
+		p.errMessage = resBody.Message
+		app.Log(resBody.Err)
 	}
 }

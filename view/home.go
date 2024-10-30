@@ -13,9 +13,11 @@ import (
 
 type Home struct {
 	app.Compo
-	errMessage  string
-	user        model.User
-	accessToken string
+	errMessage         string
+	user               model.User
+	accessToken        string
+	newUsername        string
+	showUpdateUserForm bool
 }
 
 type errResponseBody struct {
@@ -71,9 +73,7 @@ func (h *Home) OnMount(ctx app.Context) {
 				h.errMessage = "Failed to build user request"
 				app.Log(err)
 			}
-			token := fmt.Sprintf("Bearer %s", h.accessToken)
-			app.Log(token)
-			req.Header.Add("Authorization", token)
+			req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", h.accessToken))
 			req.Header.Add("Content-Type", "application/json")
 			client := http.Client{}
 			res, err := client.Do(req)
@@ -116,17 +116,36 @@ func (h *Home) Render() app.UI {
 		app.H1().Text("Resources Manager"),
 		app.If(h.accessToken != "", func() app.UI {
 			return app.Div().Body(
-				app.P().Text("Hello "+h.user.Username),
-				app.Button().Text("Create Team").OnClick(func(ctx app.Context, e app.Event) {
-					ctx.Navigate("/create-team")
+				app.If(h.showUpdateUserForm, func() app.UI {
+					return app.Div().Body(
+						app.Input().Placeholder("New username").Value(h.newUsername).OnChange(h.ValueTo(&h.newUsername)),
+						app.Button().Text("Save").OnClick(h.modifyUser),
+						app.Button().Text("Cancel").OnClick(func(ctx app.Context, e app.Event) {
+							h.newUsername = ""
+							h.showUpdateUserForm = false
+						}),
+					)
+				}).Else(func() app.UI {
+					return app.Div().Body(
+						app.P().Text("Hello "+h.user.Username),
+						app.Button().Text("Create Team").OnClick(func(ctx app.Context, e app.Event) {
+							ctx.Navigate("/create-team")
+						}),
+						app.Button().Text("Join Team").OnClick(func(ctx app.Context, e app.Event) {
+							ctx.Navigate("/join-team")
+						}),
+						app.Div().Body(
+							app.Button().Text("Modify username").OnClick(func(ctx app.Context, e app.Event) {
+								h.showUpdateUserForm = true
+							}),
+							app.Button().Text("Delete user").OnClick(h.deleteUser),
+							app.Button().Text("Sign Out").OnClick(func(ctx app.Context, e app.Event) {
+								app.Window().Call("deleteAccessTokenCookie")
+								ctx.Reload()
+							}),
+						),
+					)
 				}),
-				app.Button().Text("Join Team").OnClick(func(ctx app.Context, e app.Event) {
-					ctx.Navigate("/join-team")
-				}),
-				app.Div().Body(
-					app.Button().Text("Modify username"),
-					app.Button().Text("Delete user"),
-				),
 			)
 		}).Else(func() app.UI {
 			return app.Div().Body(
@@ -135,4 +154,92 @@ func (h *Home) Render() app.UI {
 		}),
 		app.P().Text(h.errMessage),
 	)
+}
+
+func (h *Home) deleteUser(ctx app.Context, e app.Event) {
+	ctx.Async(func() {
+		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%v/user/%v", app.Getenv("BACK_URL"), h.user.Id), nil)
+		if err != nil {
+			app.Log(err)
+			h.errMessage = "Could not build the user delete request"
+			return
+		}
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", h.accessToken))
+		req.Header.Add("Content-Type", "application/json")
+		client := http.Client{}
+		res, err := client.Do(req)
+		if err != nil {
+			app.Log(err)
+			h.errMessage = "Failed to execute the user delete request"
+			return
+		}
+		b, err := io.ReadAll(res.Body)
+		if err != nil {
+			app.Log(err)
+			h.errMessage = "Failed to read user delete response"
+			return
+		}
+		if res.StatusCode == http.StatusOK {
+			app.Log("User deleted successfully")
+			app.Window().Call("deleteAccessTokenCookie")
+			h.accessToken = ""
+			ctx.Dispatch(func(ctx app.Context) {})
+		} else {
+			var respBody errResponseBody
+			err := json.Unmarshal(b, &respBody)
+			if err != nil {
+				h.errMessage = "Failed to parse error response body"
+			}
+			h.errMessage = respBody.Message
+			app.Log(respBody.Err)
+		}
+	})
+}
+
+func (h *Home) modifyUser(ctx app.Context, e app.Event) {
+	req, err := http.NewRequest(http.MethodPatch, fmt.Sprintf("%v/user", app.Getenv("BACK_URL")),
+		strings.NewReader(
+			fmt.Sprintf(`{"id":%v,"username":"%v"}`, h.user.Id, h.newUsername),
+		),
+	)
+	if err != nil {
+		app.Log(err)
+		h.errMessage = "Failed to build user update request"
+		return
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", h.accessToken))
+	req.Header.Add("Content-Type", "application/json")
+	client := http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		app.Log(err)
+		h.errMessage = "Failed modifying user"
+		return
+	}
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		h.errMessage = "Failed reading the new user modifications"
+		return
+	}
+	if res.StatusCode == http.StatusOK {
+		var body userResponse
+		if err = json.Unmarshal(b, &body); err != nil {
+			app.Log(err)
+			h.errMessage = "Could not parse the user modifications"
+			return
+		}
+		h.user = body.User
+		ctx.SessionStorage().Set("user", h.user)
+		h.showUpdateUserForm = false
+		app.Log(h.showUpdateUserForm)
+	} else {
+		var body errResponseBody
+		if err = json.Unmarshal(b, &body); err != nil {
+			app.Log(err)
+			h.errMessage = "Could not parse the user modifications"
+			return
+		}
+		app.Log(body.Err)
+		h.errMessage = body.Message
+	}
 }

@@ -30,7 +30,7 @@ func (c *JoinTeam) OnMount(ctx app.Context) {
 	atCookie := app.Window().Call("getAccessTokenCookie")
 	app.Log("access token", atCookie.String())
 	if atCookie.IsUndefined() {
-		ctx.Navigate("dashboard")
+		ctx.Navigate("/")
 	} else {
 		c.accessToken = atCookie.String()
 	}
@@ -97,54 +97,52 @@ func (j *JoinTeam) joinAction(ctx app.Context, e app.Event) {
 					app.Log(err)
 				}
 				ctx.Async(func() {
-					// verify if user is already in team, if it isn't, add as new participant
-					ctx.Async(func() {
-						// add participant with admin role
-						req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%v/participant", app.Getenv("BACK_URL")), strings.NewReader(fmt.Sprintf(`
-						{"admin":%v,"user_id":%v,"team_id":%v}
-						`, true, j.user.Id, resBody.TeamID)))
-						if err != nil {
-							app.Log(err)
-							j.errMessage = "Could not build the participant request"
-							return
-						}
-						req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", j.accessToken))
-						req.Header.Add("Content-Type", "application/json")
-						client := http.Client{}
-						res, err := client.Do(req)
-						if err != nil {
-							app.Log(err)
-							j.errMessage = "Failed to add participant"
-							return
-						}
-						defer res.Body.Close()
-						b, err := io.ReadAll(res.Body)
-						if err != nil {
-							j.errMessage = "Failed reading the partipant response"
-							return
-						}
+					req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%v/participant", app.Getenv("BACK_URL")), strings.NewReader(fmt.Sprintf(`
+					{"admin":%v,"user_id":%v,"team_id":%v}
+					`, false, j.user.Id, resBody.TeamID,
+					)))
+					if err != nil {
+						app.Log(err)
+						j.errMessage = "Could not build the participant request"
+						return
+					}
+					req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", j.accessToken))
+					req.Header.Add("Content-Type", "application/json")
+					client := http.Client{}
+					res, err := client.Do(req)
+					if err != nil {
+						app.Log(err)
+						j.errMessage = "Failed to add participant"
+						return
+					}
+					defer res.Body.Close()
+					b, err := io.ReadAll(res.Body)
+					if err != nil {
+						app.Log(err)
+						j.errMessage = "Failed reading the partipant response"
+						return
+					}
 
-						if res.StatusCode == http.StatusOK {
-							var body participantResponse
-							if err = json.Unmarshal(b, &body); err != nil {
-								app.Log(err)
-								j.errMessage = "Could not parse the participant response"
-								return
-							}
-							app.Log("Participant retrieved", body.Participant)
-							ctx.SessionStorage().Set("admin", body.Participant.Admin)
-							ctx.Navigate("dashboard")
-						} else {
-							var body errResponseBody
-							if err = json.Unmarshal(b, &body); err != nil {
-								app.Log(err)
-								j.errMessage = "Could not parse the participant data"
-								return
-							}
-							app.Log(body.Err)
-							j.errMessage = body.Message
+					if res.StatusCode == http.StatusOK {
+						var body participantResponse
+						if err = json.Unmarshal(b, &body); err != nil {
+							app.Log(err)
+							j.errMessage = "Could not parse the participant response"
+							return
 						}
-					})
+						app.Log("Participant retrieved", body.Participant)
+						ctx.SessionStorage().Set("admin", body.Participant.Admin)
+						ctx.Navigate("dashboard")
+					} else {
+						var body errResponseBody
+						if err = json.Unmarshal(b, &body); err != nil {
+							app.Log(err)
+							j.errMessage = "Could not parse the participant data"
+							return
+						}
+						app.Log(body.Message, body.Err)
+						j.errMessage = body.Message
+					}
 				})
 			} else {
 				app.Log("Request failed with status:", res.StatusCode)

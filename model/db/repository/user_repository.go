@@ -9,8 +9,7 @@ import (
 
 type UserRepository interface {
 	InsertOrGetUser(*model.User) (bool, error)
-	VerifyUser(*model.User) error
-	UpdateUser(*model.User) error
+	UpdateUser(*model.PatchUser) error
 	DeleteUserByID(int64) error
 }
 
@@ -31,20 +30,7 @@ func (s *DBService) InsertOrGetUser(user *model.User) (wasInserted bool, err err
 	}
 }
 
-func (s *DBService) VerifyUser(user *model.User) error {
-	// 	query := `SELECT * FROM public.user WHERE username=$1`
-	// 	var pw string
-	// 	err := s.DB.QueryRow(query, user.Username).Scan(&user.Id, &user.Username, &pw, &user.Email)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	if err = comparePassword([]byte(pw), []byte(user.Password)); err != nil {
-	// 		return fmt.Errorf("invalid user data: %v", err)
-	// 	}
-	return nil
-}
-
-func (s *DBService) ReadUsers() (*[]model.User, error) {
+/* func (s *DBService) ReadUsers() (*[]model.User, error) {
 	var users []model.User
 	query := "SELECT * FROM public.user"
 	rows, err := s.DB.Query(query)
@@ -53,20 +39,19 @@ func (s *DBService) ReadUsers() (*[]model.User, error) {
 	}
 	for rows.Next() {
 		var r model.User
-		// if err := rows.Scan(&r.Id, &r.Username, &r.Password, &r.Email); err != nil {
-		// 	return nil, fmt.Errorf("failed reading rows: %v", err)
-		// }
+		if err := rows.Scan(&r.Id, &r.Username, &r.Password, &r.Email); err != nil {
+			return nil, fmt.Errorf("failed reading rows: %v", err)
+		}
 		users = append(users, r)
 	}
 	return &users, nil
-}
+}*/
 
-func (s *DBService) UpdateUser(user *model.User) error {
-	// row := s.DB.QueryRow("UPDATE public.user SET username=$1, password=$2 WHERE id=$3 RETURNING username,password,email", user.Username, user.Password, user.Id)
-	// err := row.Scan(&user.Username, &user.Password, &user.Email)
-	// if err != nil {
-	// 	return err
-	// }
+func (s *DBService) UpdateUser(user *model.PatchUser) error {
+	row := s.DB.QueryRow("UPDATE public.user SET username=$1 WHERE id=$2 RETURNING email", user.Username, user.Id)
+	if err := row.Scan(&user.Email); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -74,6 +59,10 @@ func (s *DBService) DeleteUserByID(userId int64) error {
 	_, err := s.DB.Exec("DELETE FROM public.user WHERE id=$1", userId)
 	if err != nil {
 		return err
+	}
+	s.DB.Query("DELETE FROM public.team WHERE id")
+	if err != nil {
+
 	}
 	return nil
 }

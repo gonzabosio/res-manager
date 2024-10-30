@@ -26,13 +26,20 @@ type Project struct {
 	projectDetailsField string
 
 	sectionTitleField string
+
+	accessToken string
 }
 
 func (p *Project) OnMount(ctx app.Context) {
+	atCookie := app.Window().Call("getAccessTokenCookie")
+	if atCookie.IsUndefined() {
+		ctx.Navigate("/")
+	} else {
+		p.accessToken = atCookie.String()
+	}
 	if err := ctx.SessionStorage().Get("project", &p.project); err != nil {
 		app.Log("Could not get the project from session storage", err)
 	}
-	app.Log(fmt.Sprintf("In %v", p.project))
 	var teamIDstr string
 	if err := ctx.LocalStorage().Get("teamID", &teamIDstr); err != nil {
 		app.Log("Could not get the team id from local storage", err)
@@ -96,6 +103,8 @@ func (p *Project) modifyProject(ctx app.Context, e app.Event) {
 		p.errMessage = "Failed modifying project"
 		return
 	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", p.accessToken))
+	req.Header.Add("Content-Type", "application/json")
 	client := http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
@@ -149,6 +158,8 @@ func (p *Project) deleteProject(ctx app.Context, e app.Event) {
 		p.errMessage = "Failed to create request to delete project"
 		return
 	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", p.accessToken))
+	req.Header.Add("Content-Type", "application/json")
 	res, err := client.Do(req)
 	if err != nil {
 		app.Log(err)
@@ -182,10 +193,19 @@ func (p *Project) addNewSection(ctx app.Context, e app.Event) {
 		return
 	}
 	app.Log(fmt.Sprintf("Title: %v\nProjectID: %v", p.sectionTitleField, p.project.Id))
-	res, err := http.Post(app.Getenv("BACK_URL")+"/section", "application/json",
-		strings.NewReader(fmt.Sprintf(
-			`{"title":"%v","project_id":%d}`,
-			p.sectionTitleField, p.project.Id)))
+	req, err := http.NewRequest(http.MethodPost, app.Getenv("BACK_URL")+"/section", strings.NewReader(fmt.Sprintf(
+		`{"title":"%v","project_id":%d}`,
+		p.sectionTitleField, p.project.Id)),
+	)
+	if err != nil {
+		app.Log(err)
+		p.errMessage = "Could not add new section"
+		return
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", p.accessToken))
+	req.Header.Add("Content-Type", "application/json")
+	client := http.Client{}
+	res, err := client.Do(req)
 	if err != nil {
 		app.Log(err)
 		p.errMessage = "Failed adding new section"

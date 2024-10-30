@@ -1,10 +1,9 @@
 package model
 
 type User struct {
-	Id       int64  `json:"id"`
+	Id       int64  `json:"id,omitempty"`
 	Username string `json:"username" validate:"required,max=50"`
 	Email    string `json:"email" validate:"required,email"`
-	// Password string `json:"password" validate:"required,min=4,max=100"`
 }
 
 type GoogleUser struct {
@@ -15,4 +14,10 @@ type GoogleUser struct {
 	GivenName     string `json:"given_name"`
 	FamilyName    string `json:"family_name"`
 	Picture       string `json:"picture"`
+}
+
+type PatchUser struct {
+	Id       int64  `json:"id" validate:"required"`
+	Username string `json:"username" validate:"required"`
+	Email    string `json:"email,omitempty"`
 }

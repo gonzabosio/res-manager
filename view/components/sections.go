@@ -27,9 +27,12 @@ type Sections struct {
 	newSectionTitle string
 
 	errMessage    string
+	user          model.User
 	project       model.Project
 	resource      model.Resource
 	resourcesList []model.Resource
+
+	accessToken string
 }
 
 type errResponseBody struct {
@@ -58,9 +61,25 @@ type resourceResponse struct {
 }
 
 func (s *Sections) OnMount(ctx app.Context) {
+	if err := ctx.SessionStorage().Get("user", &s.user); err != nil {
+		app.Log("Could not get user from local storage")
+	}
+	atCookie := app.Window().Call("getAccessTokenCookie")
+	if atCookie.IsUndefined() {
+		ctx.Navigate("/")
+	} else {
+		s.accessToken = atCookie.String()
+	}
 	ctx.SessionStorage().Get("project", &s.project)
-	app.Log(fmt.Sprintf("In %v", s.project))
-	res, err := http.Get(fmt.Sprintf("%v/section/%v", app.Getenv("BACK_URL"), s.project.Id))
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%v/section/%v", app.Getenv("BACK_URL"), s.project.Id), nil)
+	if err != nil {
+		app.Log(err)
+		s.errMessage = "Could not get sections"
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", s.accessToken))
+	req.Header.Add("Content-Type", "application/json")
+	client := http.Client{}
+	res, err := client.Do(req)
 	if err != nil {
 		s.errMessage = fmt.Sprintf("Failed getting sections: %v", err)
 		return
@@ -78,6 +97,14 @@ func (s *Sections) OnMount(ctx app.Context) {
 			s.errMessage = "Failed parsing sections data"
 		}
 		s.sectionsList = resBody.Sections
+	} else {
+		var resBody errResponseBody
+		if err = json.Unmarshal(b, &resBody); err != nil {
+			app.Log(err)
+			s.errMessage = "Failed parsing sections data"
+		}
+		s.errMessage = resBody.Message
+		app.Log(resBody.Err)
 	}
 }
 
@@ -137,8 +164,16 @@ func (s *Sections) Render() app.UI {
 }
 
 func (s *Sections) loadResources(ctx app.Context, e app.Event) {
-	app.Log("Section ID", s.section.Id)
-	res, err := http.Get(fmt.Sprintf("%v/resource/%v", app.Getenv("BACK_URL"), s.section.Id))
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%v/resource/%v", app.Getenv("BACK_URL"), s.section.Id), nil)
+	if err != nil {
+		s.errMessage = "Could not load resources"
+		app.Log(err)
+		return
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", s.accessToken))
+	req.Header.Add("Content-Type", "application/json")
+	client := http.Client{}
+	res, err := client.Do(req)
 	if err != nil {
 		s.errMessage = fmt.Sprintf("Failed getting resources: %v", err)
 		return
@@ -164,11 +199,20 @@ func (s *Sections) loadResources(ctx app.Context, e app.Event) {
 }
 
 func (s *Sections) addResource(ctx app.Context, e app.Event) {
-	res, err := http.Post(fmt.Sprintf("%v/resource", app.Getenv("BACK_URL")), "application/json",
-		strings.NewReader(fmt.Sprintf(
-			`{"title":"%v","section_id":%d}`,
-			s.resource.Title, s.section.Id,
-		)))
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%v/resource", app.Getenv("BACK_URL")), strings.NewReader(fmt.Sprintf(
+		`{"title":"%v","last_edition_by":"%v","section_id":%d}`,
+		s.resource.Title, s.user.Username, s.section.Id,
+	)))
+	if err != nil {
+		app.Log(err)
+		s.errMessage = "Could not add resource"
+		return
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", s.accessToken))
+	req.Header.Add("Content-Type", "application/json")
+	client := http.Client{}
+	res, err := client.Do(req)
+
 	if err != nil {
 		app.Log(err)
 		s.errMessage = "Failed to create new resource"
@@ -229,6 +273,8 @@ func (s *Sections) deleteSection(ctx app.Context, e app.Event) {
 		s.errMessage = "Failed creating request to delete section"
 		return
 	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", s.accessToken))
+	req.Header.Add("Content-Type", "application/json")
 	res, err := client.Do(req)
 	app.Log(res.Body)
 	if err != nil {
@@ -265,6 +311,8 @@ func (s *Sections) modifySection(ctx app.Context, e app.Event) {
 		s.errMessage = "Failed modifying section"
 		return
 	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", s.accessToken))
+	req.Header.Add("Content-Type", "application/json")
 	client := http.Client{}
 	res, err := client.Do(req)
 	if err != nil {

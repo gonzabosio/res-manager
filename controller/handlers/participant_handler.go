@@ -73,16 +73,25 @@ func (h *Handler) GetParticipants(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) DeleteParticipant(w http.ResponseWriter, r *http.Request) {
-	idS := chi.URLParam(r, "id")
+	idS := chi.URLParam(r, "user-id")
 	userId, err := strconv.Atoi(idS)
 	if err != nil {
 		WriteJSON(w, map[string]interface{}{
-			"message": "Could not convert id",
+			"message": "Could not convert user id",
 			"error":   err.Error(),
 		}, http.StatusBadRequest)
 		return
 	}
-	err = h.Service.DeleteParticipantByID(int64(userId))
+	idS = chi.URLParam(r, "team-id")
+	teamId, err := strconv.Atoi(idS)
+	if err != nil {
+		WriteJSON(w, map[string]interface{}{
+			"message": "Could not convert team id",
+			"error":   err.Error(),
+		}, http.StatusBadRequest)
+		return
+	}
+	err = h.Service.DeleteParticipantByIDs(int64(userId), int64(teamId))
 	if err != nil {
 		WriteJSON(w, map[string]string{
 			"message": "Could not delete participant",

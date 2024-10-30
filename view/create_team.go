@@ -35,7 +35,7 @@ func (c *CreateTeam) OnMount(ctx app.Context) {
 	atCookie := app.Window().Call("getAccessTokenCookie")
 	app.Log("access token", atCookie.String())
 	if atCookie.IsUndefined() {
-		ctx.Navigate("dashboard")
+		ctx.Navigate("/")
 	} else {
 		c.accessToken = atCookie.String()
 	}

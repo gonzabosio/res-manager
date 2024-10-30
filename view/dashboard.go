@@ -19,15 +19,28 @@ type Dashboard struct {
 	components.ParticipantsList
 
 	team             model.Team
+	user             model.User
 	showParticipants bool
 	showTeamForm     bool
 	errMessage       string
 
 	newTeamName string
 	newPassword string
+
+	accessToken string
 }
 
 func (d *Dashboard) OnMount(ctx app.Context) {
+
+	atCookie := app.Window().Call("getAccessTokenCookie")
+	if atCookie.IsUndefined() {
+		ctx.Navigate("/")
+	} else {
+		d.accessToken = atCookie.String()
+	}
+	if err := ctx.SessionStorage().Get("user", &d.user); err != nil {
+		app.Log("Could not get user data from session storage", err)
+	}
 	if err := ctx.LocalStorage().Get("teamName", &d.team.Name); err != nil {
 		app.Log("Could not get team name from local storage", err)
 	}
@@ -101,6 +114,8 @@ func (d *Dashboard) editTeam(ctx app.Context, e app.Event) {
 		d.errMessage = "Failed modifying team"
 		return
 	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", d.accessToken))
+	req.Header.Add("Content-Type", "application/json")
 	client := http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
@@ -154,6 +169,8 @@ func (d *Dashboard) deleteTeam(ctx app.Context, e app.Event) {
 		d.errMessage = "Failed creating request to delete team"
 		return
 	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", d.accessToken))
+	req.Header.Add("Content-Type", "application/json")
 	res, err := client.Do(req)
 	if err != nil {
 		app.Log(err)
@@ -174,7 +191,40 @@ func (d *Dashboard) toggleTeamForm(ctx app.Context, e app.Event) {
 }
 
 func (d *Dashboard) exitTeam(ctx app.Context, e app.Event) {
-	//delete user from participants
+	url := fmt.Sprintf("%v/participant/%v/%v", app.Getenv("BACK_URL"), d.user.Id, d.team.Id)
+	app.Log(url)
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		app.Log(err)
+		d.errMessage = "Could not exit team"
+		return
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", d.accessToken))
+	req.Header.Add("Content-Type", "application/json")
+	client := http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		app.Log(err)
+		d.errMessage = "Could not exit team"
+	}
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		app.Log(err)
+		d.errMessage = "Failed to read exit team response"
+		return
+	}
+	if res.StatusCode == http.StatusOK {
+		ctx.Navigate("/")
+	} else {
+		var errResBody errResponseBody
+		if err := json.Unmarshal(b, &errResBody); err != nil {
+			app.Log(err)
+			d.errMessage = "Failed to parse exit team response data"
+			return
+		}
+		d.errMessage = errResBody.Message
+		app.Log(errResBody.Err)
+	}
 }
 func (d *Dashboard) changeTeam(ctx app.Context, e app.Event) {
 	ctx.Navigate("/")
