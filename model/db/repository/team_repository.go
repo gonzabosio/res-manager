@@ -8,6 +8,7 @@ import (
 
 	"github.com/gonzabosio/gobo-patcher"
 	"github.com/gonzabosio/res-manager/model"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type TeamRepository interface {
@@ -68,7 +69,7 @@ func (s *DBService) ReadTeamByName(team *model.Team) error {
 		}
 		return err
 	}
-	if err = comparePassword([]byte(pw), []byte(team.Password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(pw), []byte(team.Password)); err != nil {
 		return fmt.Errorf("invalid team data: %v", err)
 	}
 	team.Password = pw

@@ -55,16 +55,15 @@ func Routing() *chi.Mux {
 		r.Patch("/resource", h.ModifyResource)
 		r.Delete("/resource/{resource-id}", h.DeleteResource)
 
-		r.Post("/login-user", h.LoginUser)
 		r.Post("/user", h.RegisterUser) // if user already exists retrieve info
-		// r.Get("/user", h.GetUsers)
+		r.Get("/user", h.GetUsers)
 		r.Patch("/user", h.ModifyUser)
 		r.Delete("/user/{user-id}", h.DeleteUser)
 
 		r.Post("/participant", h.AddParticipant)
 		r.Get("/participant/{team-id}", h.GetParticipants)
-		// update user role
-		r.Delete("/participant/{user-id}/{team-id}", h.DeleteParticipant)
+		r.Patch("/participant/{participant-id}", h.GiveAdmin)
+		r.Delete("/participant/{team-id}/{participant-id}", h.DeleteParticipant)
 
 		r.Post("/csv", h.UploadCSV)
 	})

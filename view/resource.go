@@ -51,7 +51,11 @@ func (r *Resource) OnMount(ctx app.Context) {
 func (r *Resource) Render() app.UI {
 	return app.Div().Body(
 		app.If(!r.editMode, func() app.UI {
-			return app.Div().Body(app.P().Text(r.resource.Title),
+			return app.Div().Body(
+				app.Button().Text("Dashboard").OnClick(func(ctx app.Context, e app.Event) {
+					ctx.Navigate("/dashboard")
+				}),
+				app.P().Text(r.resource.Title),
 				app.Button().Text("Delete").OnClick(r.deleteResource),
 				app.Button().Text("Edit").OnClick(func(ctx app.Context, e app.Event) {
 					r.titleChanges = r.resource.Title

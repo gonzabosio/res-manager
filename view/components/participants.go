@@ -20,6 +20,7 @@ type ParticipantsList struct {
 	teamId       int64
 	user         model.User
 	admin        bool
+	pId          int64
 }
 
 type participantsResponse struct {
@@ -96,7 +97,13 @@ func (p *ParticipantsList) OnMount(ctx app.Context) {
 func (p *ParticipantsList) Render() app.UI {
 	return app.Div().Body(
 		app.P().Text(p.errMessage),
+		app.Button().Text("Exit").OnClick(func(ctx app.Context, e app.Event) {
+			p.exitTeam(ctx, e, p.pId)
+		}),
 		app.Range(p.participants).Slice(func(i int) app.UI {
+			if p.participants[i].UserId == p.user.Id {
+				p.pId = p.participants[i].Id
+			}
 			return app.Div().Body(
 				app.If(!p.participants[i].Admin, func() app.UI {
 					return app.P().Text(p.participants[i].Username)
@@ -108,11 +115,11 @@ func (p *ParticipantsList) Render() app.UI {
 				app.If(p.participants[i].UserId != p.user.Id && p.admin, func() app.UI {
 					return app.Div().Body(
 						app.Button().Text("Delete").OnClick(func(ctx app.Context, e app.Event) {
-							p.deleteParticipant(ctx, e, p.participants[i].UserId, p.teamId)
+							p.deleteParticipant(ctx, e, p.participants[i].Id)
 						}),
 						app.If(!p.participants[i].Admin, func() app.UI {
 							return app.Button().Text("Give Admin").OnClick(func(ctx app.Context, e app.Event) {
-								p.giveAdmin(ctx, e, p.participants[i].UserId, p.teamId)
+								p.giveAdmin(ctx, e, p.participants[i].Id)
 							})
 						}),
 					)
@@ -122,10 +129,100 @@ func (p *ParticipantsList) Render() app.UI {
 	)
 }
 
-func (p *ParticipantsList) deleteParticipant(ctx app.Context, e app.Event, userId, teamId int64) {
-	//delete participant by user id and team id
+func (p *ParticipantsList) deleteParticipant(ctx app.Context, e app.Event, pId int64) {
+	url := fmt.Sprintf("%v/participant/%v/%v", app.Getenv("BACK_URL"), p.teamId, pId)
+	app.Log(url)
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		app.Log(err)
+		p.errMessage = "Could not delete participant"
+		return
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", p.accessToken))
+	req.Header.Add("Content-Type", "application/json")
+	client := http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		app.Log(err)
+		p.errMessage = "Could not delete participant"
+	}
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		app.Log(err)
+		p.errMessage = "Failed to read delete participant response"
+		return
+	}
+	if res.StatusCode == http.StatusOK {
+		p.errMessage = "Member deleted"
+	} else {
+		var errResBody errResponseBody
+		if err := json.Unmarshal(b, &errResBody); err != nil {
+			app.Log(err)
+			p.errMessage = "Failed to parse delete participant response data"
+			return
+		}
+		p.errMessage = errResBody.Message
+		app.Log(errResBody.Err)
+	}
 }
 
-func (p *ParticipantsList) giveAdmin(ctx app.Context, e app.Event, userId, teamId int64) {
-	//give admin to the participant selected
+func (p *ParticipantsList) giveAdmin(ctx app.Context, e app.Event, pId int64) {
+	req, err := http.NewRequest(http.MethodPatch, fmt.Sprintf("%v/participant/%v", app.Getenv("BACK_URL"), pId), nil)
+	if err != nil {
+		app.Log(err)
+		p.errMessage = "Could not execute the request"
+		return
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", p.accessToken))
+	req.Header.Add("Content-Type", "application/json")
+	client := http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		app.Log(err)
+		p.errMessage = "Could not give admin to the member"
+		return
+	}
+	if res.StatusCode == http.StatusOK {
+		p.errMessage = "Admin role has given to the member"
+	} else {
+		app.Log(err)
+		p.errMessage = "Could not give admin to the member"
+	}
+}
+
+func (p *ParticipantsList) exitTeam(ctx app.Context, e app.Event, pId int64) {
+	url := fmt.Sprintf("%v/participant/%v/%v", app.Getenv("BACK_URL"), p.teamId, pId)
+	app.Log(url)
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		app.Log(err)
+		p.errMessage = "Could not exit team"
+		return
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", p.accessToken))
+	req.Header.Add("Content-Type", "application/json")
+	client := http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		app.Log(err)
+		p.errMessage = "Could not exit team"
+	}
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		app.Log(err)
+		p.errMessage = "Failed to read exit team response"
+		return
+	}
+	if res.StatusCode == http.StatusOK {
+		ctx.Navigate("/")
+	} else {
+		var errResBody errResponseBody
+		if err := json.Unmarshal(b, &errResBody); err != nil {
+			app.Log(err)
+			p.errMessage = "Failed to parse exit team response data"
+			return
+		}
+		p.errMessage = errResBody.Message
+		app.Log(errResBody.Err)
+	}
 }

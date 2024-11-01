@@ -2,8 +2,6 @@ package repository
 
 import (
 	"database/sql"
-
-	"golang.org/x/crypto/bcrypt"
 )
 
 type DBService struct {
@@ -16,11 +14,4 @@ type RepositoryService struct {
 	SectionRepository
 	ResourceRepository
 	ParticipantRepository
-}
-
-func comparePassword(hashedPassword, password []byte) error {
-	if err := bcrypt.CompareHashAndPassword(hashedPassword, password); err != nil {
-		return err
-	}
-	return nil
 }

@@ -36,17 +36,18 @@ type userResponse struct {
 }
 
 func (h *Home) OnMount(ctx app.Context) {
-	if err := ctx.SessionStorage().Get("user", &h.user); err != nil {
-		app.Log("Could not get user from local storage")
-	}
-	atCookie := app.Window().Call("getAccessTokenCookie")
-	app.Log("access token", atCookie.String())
-	if atCookie.IsUndefined() {
-		h.accessToken = ""
-	} else {
-		h.accessToken = atCookie.String()
-		var googleUser model.GoogleUser
-		ctx.Async(func() {
+	ctx.Async(func() {
+		defer ctx.Update()
+		if err := ctx.SessionStorage().Get("user", &h.user); err != nil {
+			app.Log("Could not get user from local storage")
+		}
+		atCookie := app.Window().Call("getAccessTokenCookie")
+		app.Log("access token", atCookie.String())
+		if atCookie.IsUndefined() {
+			h.accessToken = ""
+		} else {
+			h.accessToken = atCookie.String()
+			var googleUser model.GoogleUser
 			resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + h.accessToken)
 			if err != nil {
 				h.errMessage = ""
@@ -107,8 +108,8 @@ func (h *Home) OnMount(ctx app.Context) {
 				app.Log(body.Err)
 				h.errMessage = body.Message
 			}
-		})
-	}
+		}
+	})
 }
 
 func (h *Home) Render() app.UI {
@@ -141,6 +142,7 @@ func (h *Home) Render() app.UI {
 							app.Button().Text("Delete user").OnClick(h.deleteUser),
 							app.Button().Text("Sign Out").OnClick(func(ctx app.Context, e app.Event) {
 								app.Window().Call("deleteAccessTokenCookie")
+								ctx.SessionStorage().Del("user")
 								ctx.Reload()
 							}),
 						),

@@ -72,18 +72,32 @@ func (h *Handler) GetParticipants(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
-func (h *Handler) DeleteParticipant(w http.ResponseWriter, r *http.Request) {
-	idS := chi.URLParam(r, "user-id")
-	userId, err := strconv.Atoi(idS)
+func (h *Handler) GiveAdmin(w http.ResponseWriter, r *http.Request) {
+	idS := chi.URLParam(r, "participant-id")
+	pId, err := strconv.Atoi(idS)
 	if err != nil {
 		WriteJSON(w, map[string]interface{}{
-			"message": "Could not convert user id",
+			"message": "Could not convert participant id",
 			"error":   err.Error(),
 		}, http.StatusBadRequest)
 		return
 	}
-	idS = chi.URLParam(r, "team-id")
-	teamId, err := strconv.Atoi(idS)
+	err = h.Service.AssignAdminRole(int64(pId))
+	if err != nil {
+		WriteJSON(w, map[string]string{
+			"message": "Could not give admin to participant",
+			"error":   err.Error(),
+		}, http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, map[string]string{
+		"message": "Admin role has given to participant",
+	}, http.StatusOK)
+}
+
+func (h *Handler) DeleteParticipant(w http.ResponseWriter, r *http.Request) {
+	idS := chi.URLParam(r, "team-id")
+	tId, err := strconv.Atoi(idS)
 	if err != nil {
 		WriteJSON(w, map[string]interface{}{
 			"message": "Could not convert team id",
@@ -91,7 +105,16 @@ func (h *Handler) DeleteParticipant(w http.ResponseWriter, r *http.Request) {
 		}, http.StatusBadRequest)
 		return
 	}
-	err = h.Service.DeleteParticipantByIDs(int64(userId), int64(teamId))
+	idS = chi.URLParam(r, "participant-id")
+	pId, err := strconv.Atoi(idS)
+	if err != nil {
+		WriteJSON(w, map[string]interface{}{
+			"message": "Could not convert participant id",
+			"error":   err.Error(),
+		}, http.StatusBadRequest)
+		return
+	}
+	err = h.Service.DeleteParticipantByID(int64(tId), int64(pId))
 	if err != nil {
 		WriteJSON(w, map[string]string{
 			"message": "Could not delete participant",

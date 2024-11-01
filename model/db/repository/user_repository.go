@@ -30,7 +30,7 @@ func (s *DBService) InsertOrGetUser(user *model.User) (wasInserted bool, err err
 	}
 }
 
-/* func (s *DBService) ReadUsers() (*[]model.User, error) {
+func (s *DBService) ReadUsers() (*[]model.User, error) {
 	var users []model.User
 	query := "SELECT * FROM public.user"
 	rows, err := s.DB.Query(query)
@@ -39,13 +39,13 @@ func (s *DBService) InsertOrGetUser(user *model.User) (wasInserted bool, err err
 	}
 	for rows.Next() {
 		var r model.User
-		if err := rows.Scan(&r.Id, &r.Username, &r.Password, &r.Email); err != nil {
+		if err := rows.Scan(&r.Id, &r.Username, &r.Email); err != nil {
 			return nil, fmt.Errorf("failed reading rows: %v", err)
 		}
 		users = append(users, r)
 	}
 	return &users, nil
-}*/
+}
 
 func (s *DBService) UpdateUser(user *model.PatchUser) error {
 	row := s.DB.QueryRow("UPDATE public.user SET username=$1 WHERE id=$2 RETURNING email", user.Username, user.Id)

@@ -28,40 +28,47 @@ type Dashboard struct {
 	newPassword string
 
 	accessToken string
+	admin       bool
 }
 
 func (d *Dashboard) OnMount(ctx app.Context) {
-
-	atCookie := app.Window().Call("getAccessTokenCookie")
-	if atCookie.IsUndefined() {
-		ctx.Navigate("/")
-	} else {
-		d.accessToken = atCookie.String()
-	}
-	if err := ctx.SessionStorage().Get("user", &d.user); err != nil {
-		app.Log("Could not get user data from session storage", err)
-	}
-	if err := ctx.LocalStorage().Get("teamName", &d.team.Name); err != nil {
-		app.Log("Could not get team name from local storage", err)
-	}
-	var teamIDstr string
-	if err := ctx.LocalStorage().Get("teamID", &teamIDstr); err != nil {
-		app.Log("Could not get the team id from local storage", err)
-	}
-	teamID, err := strconv.ParseInt(teamIDstr, 10, 64)
-	if err != nil {
-		app.Log("Error parsing teamID to int64:", err)
-		return
-	}
-	d.team.Id = teamID
+	ctx.Async(func() {
+		defer ctx.Update()
+		atCookie := app.Window().Call("getAccessTokenCookie")
+		if atCookie.IsUndefined() {
+			ctx.Navigate("/")
+		} else {
+			d.accessToken = atCookie.String()
+		}
+		if err := ctx.SessionStorage().Get("user", &d.user); err != nil {
+			app.Log("Could not get user data from session storage", err)
+		}
+		if err := ctx.LocalStorage().Get("teamName", &d.team.Name); err != nil {
+			app.Log("Could not get team name from local storage", err)
+		}
+		var teamIDstr string
+		if err := ctx.LocalStorage().Get("teamID", &teamIDstr); err != nil {
+			app.Log("Could not get the team id from local storage", err)
+		}
+		teamID, err := strconv.ParseInt(teamIDstr, 10, 64)
+		if err != nil {
+			app.Log("Error parsing teamID to int64:", err)
+			return
+		}
+		d.team.Id = teamID
+		ctx.SessionStorage().Get("admin", &d.admin)
+	})
 }
 
 func (d *Dashboard) Render() app.UI {
 	return app.Div().Body(
 		app.H1().Text(fmt.Sprintf("Dashboard of %v", d.team.Name)),
-		app.Button().Text("Edit").OnClick(d.toggleTeamForm),
-		app.Button().Text("Delete").OnClick(d.deleteTeam), //only if user role is admin
-		app.Button().Text("Exit").OnClick(d.exitTeam),
+		app.If(d.admin, func() app.UI {
+			return app.Div().Body(
+				app.Button().Text("Edit").OnClick(d.toggleTeamForm),
+				app.Button().Text("Delete").OnClick(d.deleteTeam),
+			)
+		}),
 		app.Button().Text("Change Team").OnClick(d.changeTeam),
 		app.If(d.showParticipants, func() app.UI {
 			return app.Div().Body(
@@ -190,42 +197,8 @@ func (d *Dashboard) toggleTeamForm(ctx app.Context, e app.Event) {
 	d.showTeamForm = !d.showTeamForm
 }
 
-func (d *Dashboard) exitTeam(ctx app.Context, e app.Event) {
-	url := fmt.Sprintf("%v/participant/%v/%v", app.Getenv("BACK_URL"), d.user.Id, d.team.Id)
-	app.Log(url)
-	req, err := http.NewRequest(http.MethodDelete, url, nil)
-	if err != nil {
-		app.Log(err)
-		d.errMessage = "Could not exit team"
-		return
-	}
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", d.accessToken))
-	req.Header.Add("Content-Type", "application/json")
-	client := http.Client{}
-	res, err := client.Do(req)
-	if err != nil {
-		app.Log(err)
-		d.errMessage = "Could not exit team"
-	}
-	b, err := io.ReadAll(res.Body)
-	if err != nil {
-		app.Log(err)
-		d.errMessage = "Failed to read exit team response"
-		return
-	}
-	if res.StatusCode == http.StatusOK {
-		ctx.Navigate("/")
-	} else {
-		var errResBody errResponseBody
-		if err := json.Unmarshal(b, &errResBody); err != nil {
-			app.Log(err)
-			d.errMessage = "Failed to parse exit team response data"
-			return
-		}
-		d.errMessage = errResBody.Message
-		app.Log(errResBody.Err)
-	}
-}
 func (d *Dashboard) changeTeam(ctx app.Context, e app.Event) {
+	ctx.SessionStorage().Del("teamID")
+	ctx.SessionStorage().Del("teamName")
 	ctx.Navigate("/")
 }
