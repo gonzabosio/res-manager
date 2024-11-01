@@ -8,7 +8,9 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gonzabosio/res-manager/model"
 	"github.com/maxence-charriere/go-app/v10/pkg/app"
@@ -56,8 +58,8 @@ type resourcesResponse struct {
 }
 
 type resourceResponse struct {
-	Message    string `json:"message"`
-	ResourceID int64  `json:"resource_id"`
+	Message  string         `json:"message"`
+	Resource model.Resource `json:"resource"`
 }
 
 func (s *Sections) OnMount(ctx app.Context) {
@@ -126,6 +128,16 @@ func (s *Sections) Render() app.UI {
 				app.Input().Type("text").Placeholder("Title").Value(s.resource.Title).OnChange(s.ValueTo(&s.resource.Title)),
 				app.Button().Text("Create").OnClick(s.addResource),
 				app.Button().Text("Cancel").OnClick(s.toggleShowResourceForm),
+				app.Form().EncType("multipart/form-data").Body(
+					app.Input().Type("file").ID("fileInput").Name("file").Accept(".csv"),
+					app.Button().Type("submit").Text("Upload CSV").OnClick(func(ctx app.Context, e app.Event) {
+						e.PreventDefault()
+						sectionIdStr := strconv.Itoa(int(s.section.Id))
+						app.Window().Call("uploadCSV", app.Getenv("BACK_URL"), s.accessToken, s.user.Username, sectionIdStr)
+						time.Sleep(500 * time.Millisecond)
+						ctx.Navigate(fmt.Sprintf("/dashboard/project/res?sid=%d&stitle=%s", s.section.Id, url.QueryEscape(s.section.Title)))
+					}),
+				),
 			)
 		}).ElseIf(s.showSectionForm, func() app.UI {
 			return app.Div().Body(
@@ -233,7 +245,7 @@ func (s *Sections) addResource(ctx app.Context, e app.Event) {
 			return
 		}
 		s.resource.SectionId = s.section.Id
-		s.resource.Id = resBody.ResourceID
+		s.resource.Id = resBody.Resource.Id
 		ctx.SessionStorage().Set("resource", s.resource)
 		ctx.Navigate(fmt.Sprintf("/dashboard/project/res?sid=%d&stitle=%s", s.section.Id, url.QueryEscape(s.section.Title)))
 		// ctx.Navigate("/dashboard/project/res")
@@ -259,8 +271,12 @@ func (s *Sections) toggleShowResourceForm(ctx app.Context, e app.Event) {
 	s.resource.Title = ""
 	s.errMessage = ""
 	s.showSectionForm = false
-	s.showResourcesList = false
 	s.showResourcesForm = !s.showResourcesForm
+	if !s.showResourcesForm {
+		s.showResourcesList = !s.showResourcesList
+	} else {
+		s.showResourcesList = false
+	}
 }
 
 func (s *Sections) deleteSection(ctx app.Context, e app.Event) {

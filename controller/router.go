@@ -65,6 +65,8 @@ func Routing() *chi.Mux {
 		r.Get("/participant/{team-id}", h.GetParticipants)
 		// update user role
 		r.Delete("/participant/{user-id}/{team-id}", h.DeleteParticipant)
+
+		r.Post("/csv", h.UploadCSV)
 	})
 
 	r.Route("/auth", func(r chi.Router) {

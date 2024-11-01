@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gonzabosio/res-manager/model"
+	"github.com/lib/pq"
 )
 
 type ResourceRepository interface {
@@ -17,10 +18,10 @@ type ResourceRepository interface {
 var _ ResourceRepository = (*DBService)(nil)
 
 func (s *DBService) CreateResource(res *model.Resource) error {
-	query := "INSERT INTO public.resource(title, content, url, last_edition_at, last_edition_by, section_id) VALUES($1, $2, $3, $4, $5, $6) RETURNING id"
+	query := "INSERT INTO public.resource (title, content, url, images, last_edition_at, last_edition_by, section_id) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id"
 	now := time.Now()
 	res.LastEditionAt = now
-	if err := s.DB.QueryRow(query, res.Title, res.Content, res.URL, now, res.LastEditionBy, res.SectionId).Scan(&res.Id); err != nil {
+	if err := s.DB.QueryRow(query, res.Title, res.Content, res.URL, pq.Array(res.Images), time.Now(), res.LastEditionBy, res.SectionId).Scan(&res.Id); err != nil {
 		return err
 	}
 	return nil
@@ -35,7 +36,7 @@ func (s *DBService) ReadResourcesBySectionID(sectionId int64) (*[]model.Resource
 	}
 	for rows.Next() {
 		var r model.Resource
-		if err := rows.Scan(&r.Id, &r.Title, &r.Content, &r.URL, &r.Images, &r.LastEditionAt, &r.LastEditionBy, &r.SectionId); err != nil {
+		if err := rows.Scan(&r.Id, &r.Title, &r.Content, &r.URL, pq.Array(&r.Images), &r.LastEditionAt, &r.LastEditionBy, &r.SectionId); err != nil {
 			return nil, fmt.Errorf("failed reading rows: %v", err)
 		}
 		resources = append(resources, r)

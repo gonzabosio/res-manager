@@ -46,7 +46,6 @@ func (r *Resource) OnMount(ctx app.Context) {
 	if err := ctx.SessionStorage().Get("resource", &r.resource); err != nil {
 		app.Log(fmt.Sprintf("Could not get resource data: %v", err))
 	}
-	app.Log("Got resource", r.resource)
 }
 
 func (r *Resource) Render() app.UI {
