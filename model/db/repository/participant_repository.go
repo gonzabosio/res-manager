@@ -76,7 +76,6 @@ func (s *DBService) DeleteParticipantByID(teamId int64, pId int64) error {
 		pSli = append(pSli, p)
 	}
 	if len(pSli) == 1 {
-		log.Println("DELETE TEAM")
 		if _, err := s.DB.Exec("DELETE FROM team WHERE id=$1", teamId); err != nil {
 			return err
 		}

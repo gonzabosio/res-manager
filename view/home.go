@@ -163,7 +163,7 @@ func (h *Home) deleteUser(ctx app.Context, e app.Event) {
 		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%v/user/%v", app.Getenv("BACK_URL"), h.user.Id), nil)
 		if err != nil {
 			app.Log(err)
-			h.errMessage = "Could not build the user delete request"
+			h.errMessage = "Could not build the request to delete user"
 			return
 		}
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", h.accessToken))
@@ -172,7 +172,7 @@ func (h *Home) deleteUser(ctx app.Context, e app.Event) {
 		res, err := client.Do(req)
 		if err != nil {
 			app.Log(err)
-			h.errMessage = "Failed to execute the user delete request"
+			h.errMessage = "Failed to execute the request to delete user"
 			return
 		}
 		b, err := io.ReadAll(res.Body)

@@ -29,8 +29,8 @@ async function uploadCSV(url, token, lastEditionBy, sectionId) {
             })
             let body = await response.json()
             if (response.ok) {
-                console.log('Resource ' + JSON.stringify(body.resource))
-                sessionStorage.setItem('resource', JSON.stringify(body.resource))
+                console.log('Resource ' + body)
+                sessionStorage.setItem('resource', body)
             } else {
                 console.error("File upload failed:", response.status, response.statusText, body)
             }
@@ -38,5 +38,40 @@ async function uploadCSV(url, token, lastEditionBy, sectionId) {
         } catch (error) {
             console.error("Error uploading file:", error)
         }
+    }
+}
+
+async function uploadImage(backURL, token, resourceId) {
+    const fileInput = document.getElementById("imageFile")
+    const file = fileInput.files[0]
+
+    if (!file) {
+        console.log("Please select a file to upload")
+        return
+    }
+
+    const formData = new FormData()
+    formData.append("image", file)
+    formData.append("resourceId", resourceId);
+
+    const endpoint = `${backURL}/image`
+    const authToken = token;
+
+    try {
+        const response = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${authToken}`,
+            },
+            body: formData,
+        })
+        const resBody = await response.json()
+        if (response.ok) {
+            console.log("Image uploaded successfully", resBody)
+        } else {
+            console.log("Failed to upload image", resBody)
+        }
+    } catch (error) {
+        console.error("Error uploading image:", error)
     }
 }

@@ -3,4 +3,4 @@ build:
 	go build -o view/home
 
 run: build 
-	./view/home
+	./view/home $(BUCKET_NAME)

@@ -23,3 +23,8 @@ type PatchResource struct {
 	LastEditionBy string    `json:"last_edition_by" validate:"required"`
 	SectionId     int64     `json:"section_id"`
 }
+
+type DeleteImageReq struct {
+	ImageName  string `json:"image" validate:"required"`
+	ResourceId int64  `json:"resource_id" validate:"required"`
+}

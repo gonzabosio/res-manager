@@ -16,6 +16,13 @@ require (
 
 require github.com/gonzabosio/gobo-patcher v1.3.7
 
+require gopkg.in/yaml.v2 v2.4.0 // indirect
+
+require (
+	github.com/aws/aws-sdk-go v1.55.5
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
+)
+
 require (
 	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	golang.org/x/oauth2 v0.23.0

@@ -57,7 +57,6 @@ func (h *Handler) UploadCSV(w http.ResponseWriter, r *http.Request) {
 					for j := 1; j < len(record); j++ {
 						images = append(images, record[j])
 					}
-					log.Println("All images:", images)
 					newResource.Images = images
 				}
 			}

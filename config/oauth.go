@@ -14,7 +14,7 @@ func GoogleConfig() *oauth2.Config {
 	if err != nil {
 		log.Fatalf("Some error occured. Err: %s", err)
 	}
-	log.Println("Enviroment variables:", os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URI"))
+	// log.Println("Enviroment variables:", os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URI"))
 	return &oauth2.Config{
 		RedirectURL:  os.Getenv("REDIRECT_URI"),
 		ClientID:     os.Getenv("CLIENT_ID"),

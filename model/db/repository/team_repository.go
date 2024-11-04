@@ -29,7 +29,6 @@ func (s *DBService) CreateTeam(team *model.Team) (int64, error) {
 		if err == sql.ErrNoRows {
 			var insertedID int64
 			insert := "INSERT INTO public.team(name, password) VALUES($1, $2) RETURNING id"
-			log.Println("password inserted", team.Password)
 			err = s.DB.QueryRow(insert, team.Name, team.Password).Scan(&insertedID)
 			if err != nil {
 				return 0, fmt.Errorf("failed team creation: %v", err)

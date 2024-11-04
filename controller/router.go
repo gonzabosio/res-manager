@@ -66,6 +66,10 @@ func Routing() *chi.Mux {
 		r.Delete("/participant/{team-id}/{participant-id}", h.DeleteParticipant)
 
 		r.Post("/csv", h.UploadCSV)
+
+		r.Post("/image", h.UploadImage)
+		r.Get("/image/{resource-id}", h.GetImages)
+		r.Delete("/image", h.DeleteImage)
 	})
 
 	r.Route("/auth", func(r chi.Router) {
