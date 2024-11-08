@@ -18,6 +18,16 @@ type Home struct {
 	accessToken        string
 	newUsername        string
 	showUpdateUserForm bool
+
+	teamsList []model.TeamView
+
+	teamFilter     string
+	pageNumber     int
+	pageNumberList []int
+	totalPages     int
+	offset         int
+	limit          int
+	totalTeams     int
 }
 
 type errResponseBody struct {
@@ -36,80 +46,80 @@ type userResponse struct {
 }
 
 func (h *Home) OnMount(ctx app.Context) {
-	ctx.Async(func() {
-		defer ctx.Update()
-		if err := ctx.SessionStorage().Get("user", &h.user); err != nil {
-			app.Log("Could not get user from local storage")
+	h.pageNumber = 1
+	h.limit = 3
+	h.loadTeamsList(ctx)
+	if err := ctx.SessionStorage().Get("user", &h.user); err != nil {
+		app.Log("Could not get user from local storage")
+	}
+	atCookie := app.Window().Call("getAccessTokenCookie")
+	app.Log("access token", atCookie.String())
+	if atCookie.IsUndefined() {
+		h.accessToken = ""
+	} else {
+		h.accessToken = atCookie.String()
+		var googleUser model.GoogleUser
+		resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + h.accessToken)
+		if err != nil {
+			h.errMessage = ""
+			return
 		}
-		atCookie := app.Window().Call("getAccessTokenCookie")
-		app.Log("access token", atCookie.String())
-		if atCookie.IsUndefined() {
-			h.accessToken = ""
-		} else {
-			h.accessToken = atCookie.String()
-			var googleUser model.GoogleUser
-			resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + h.accessToken)
-			if err != nil {
-				h.errMessage = ""
-				return
-			}
-			defer resp.Body.Close()
+		defer resp.Body.Close()
 
-			userData, err := io.ReadAll(resp.Body)
-			if err != nil {
-				h.errMessage = "Response JSON Parsing Failed"
-				return
-			}
-			app.Log(string(userData))
-			if err := json.Unmarshal(userData, &googleUser); err != nil {
-				h.errMessage = "User JSON Parsing Failed"
-				return
-			}
-			req, err := http.NewRequest(
-				http.MethodPost,
-				fmt.Sprintf("%v/user", app.Getenv("BACK_URL")),
-				strings.NewReader(fmt.Sprintf(`{"username":"%v","email":"%v"}`, googleUser.Name, googleUser.Email)),
-			)
-			if err != nil {
-				h.errMessage = "Failed to build user request"
-				app.Log(err)
-			}
-			req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", h.accessToken))
-			req.Header.Add("Content-Type", "application/json")
-			client := http.Client{}
-			res, err := client.Do(req)
-			if err != nil {
-				app.Log(err)
-				h.errMessage = "Failed registering user"
-				return
-			}
-			b, err := io.ReadAll(res.Body)
-			if err != nil {
-				h.errMessage = "Failed reading the user response"
-				return
-			}
-			if res.StatusCode == http.StatusOK {
-				var body userResponse
-				if err = json.Unmarshal(b, &body); err != nil {
-					app.Log(err)
-					h.errMessage = "Could not parse the user response"
-					return
-				}
-				app.Log("User retrieved", body.User)
-				h.user = body.User
-				ctx.SessionStorage().Set("user", h.user)
-			} else {
-				var body errResponseBody
-				if err = json.Unmarshal(b, &body); err != nil {
-					app.Log(err)
-					h.errMessage = "Could not parse the user data"
-					return
-				}
-				app.Log(body.Err)
-				h.errMessage = body.Message
-			}
+		userData, err := io.ReadAll(resp.Body)
+		if err != nil {
+			h.errMessage = "Response JSON Parsing Failed"
+			return
 		}
-	})
+		app.Log(string(userData))
+		if err := json.Unmarshal(userData, &googleUser); err != nil {
+			h.errMessage = "User JSON Parsing Failed"
+			return
+		}
+		req, err := http.NewRequest(
+			http.MethodPost,
+			fmt.Sprintf("%v/user", app.Getenv("BACK_URL")),
+			strings.NewReader(fmt.Sprintf(`{"username":"%v","email":"%v"}`, googleUser.Name, googleUser.Email)),
+		)
+		if err != nil {
+			h.errMessage = "Failed to build user request"
+			app.Log(err)
+		}
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", h.accessToken))
+		req.Header.Add("Content-Type", "application/json")
+		client := http.Client{}
+		res, err := client.Do(req)
+		if err != nil {
+			app.Log(err)
+			h.errMessage = "Failed registering user"
+			return
+		}
+		b, err := io.ReadAll(res.Body)
+		if err != nil {
+			h.errMessage = "Failed reading the user response"
+			return
+		}
+		if res.StatusCode == http.StatusOK {
+			var body userResponse
+			if err = json.Unmarshal(b, &body); err != nil {
+				app.Log(err)
+				h.errMessage = "Could not parse the user response"
+				return
+			}
+			app.Log("User retrieved", body.User)
+			h.user = body.User
+			ctx.SessionStorage().Set("user", h.user)
+		} else {
+			var body errResponseBody
+			if err = json.Unmarshal(b, &body); err != nil {
+				app.Log(err)
+				h.errMessage = "Could not parse the user data"
+				return
+			}
+			app.Log(body.Err)
+			h.errMessage = body.Message
+		}
+	}
 }
 
 func (h *Home) Render() app.UI {
@@ -154,7 +164,49 @@ func (h *Home) Render() app.UI {
 				app.A().Text("Sign in with Google").Href(fmt.Sprintf("%v/auth/google_login", app.Getenv("BACK_URL"))),
 			)
 		}),
-		app.P().Text(h.errMessage),
+		app.P().Text(h.errMessage).Class("err-message"),
+		app.P().Text("Teams List"),
+		app.Div().Body(
+			app.Input().Type("text").Value(h.teamFilter).Max(30).OnChange(h.ValueTo(&h.teamFilter)).Class("search-bar"),
+			app.Button().Text("Search").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
+				if h.teamFilter != "" {
+					h.offset = 0
+					h.loadTeamsList(ctx)
+					h.pageNumber = 1
+				}
+			}),
+		).Class("search-filter"),
+		app.Div().Class("card-container").Body(
+			app.Range(h.teamsList).Slice(func(i int) app.UI {
+				return app.Div().Class("card").Body(
+					app.P().Text(h.teamsList[i].Name),
+					app.P().Text(fmt.Sprintf("%d participant/s", h.teamsList[i].ParticipantsNumber)),
+				)
+			}),
+		),
+		app.Div().Body(
+			app.Button().Text("<-").OnClick(func(ctx app.Context, e app.Event) {
+				if h.pageNumber > 1 {
+					h.pageNumber--
+					h.offset -= 3
+					h.loadTeamsList(ctx)
+				}
+			}),
+			app.Range(h.pageNumberList).Slice(func(i int) app.UI {
+				return app.Button().Text(h.pageNumberList[i]).Disabled(h.pageNumberList[i] == h.pageNumber).OnClick(func(ctx app.Context, e app.Event) {
+					h.paginationBtn(ctx, i)
+				})
+			}),
+			app.Button().Text("->").OnClick(func(ctx app.Context, e app.Event) {
+				if h.pageNumber < h.totalPages {
+					h.pageNumber++
+					h.offset += 3
+					h.loadTeamsList(ctx)
+				} else {
+					app.Log("Maximum team items reached")
+				}
+			}),
+		).Class("pagination-bar"),
 	)
 }
 
@@ -243,5 +295,78 @@ func (h *Home) modifyUser(ctx app.Context, e app.Event) {
 		}
 		app.Log(body.Err)
 		h.errMessage = body.Message
+	}
+}
+
+func (h *Home) loadTeamsList(ctx app.Context) {
+	app.Log(h.limit, h.offset, h.teamFilter)
+	var (
+		res *http.Response
+		err error
+	)
+	if h.teamFilter == "" {
+		res, err = http.Get(fmt.Sprintf("%v/teams?offset=%v&limit=%v", app.Getenv("BACK_URL"), h.offset, h.limit))
+	} else {
+		res, err = http.Get(fmt.Sprintf("%v/teams?offset=%v&limit=%v&filter=%s", app.Getenv("BACK_URL"), h.offset, h.limit, h.teamFilter))
+	}
+	if err != nil {
+		h.errMessage = "Failed to load teams list"
+		return
+	}
+	type teamListResponse struct {
+		Message string           `json:"message"`
+		Teams   []model.TeamView `json:"teams"`
+		Count   int              `json:"count"`
+	}
+	if res.StatusCode == http.StatusOK {
+		var teamsList teamListResponse
+		if err = json.NewDecoder(res.Body).Decode(&teamsList); err != nil {
+			h.errMessage = "Failed to load teams list"
+			app.Log(err)
+			return
+		}
+		h.teamsList = teamsList.Teams
+		h.totalTeams = teamsList.Count
+		app.Log("Total teams", h.totalTeams)
+		h.pageNumberList = []int{}
+		h.totalPages = h.totalTeams / 3
+		if h.totalTeams%3 != 0 {
+			h.totalPages++
+		}
+		for i := 1; i <= h.totalPages; i++ {
+			h.pageNumberList = append(h.pageNumberList, i)
+		}
+		app.Log("Page number List:", h.pageNumberList)
+		ctx.Dispatch(func(ctx app.Context) {})
+	} else {
+		var errResBody errResponseBody
+		if err = json.NewDecoder(res.Body).Decode(&errResBody); err != nil {
+			h.errMessage = "Failed to load teams list"
+			app.Log(err)
+			return
+		}
+		h.errMessage = errResBody.Message
+		app.Log(errResBody.Err)
+	}
+
+}
+
+func (h *Home) paginationBtn(ctx app.Context, i int) {
+	if h.pageNumber != h.pageNumberList[i] {
+		h.pageNumber = h.pageNumberList[i]
+		if h.pageNumberList[i] == 1 {
+			h.pageNumber = h.pageNumberList[i]
+			h.offset = 0
+			h.loadTeamsList(ctx)
+		} else {
+			h.offset = 0
+			h.pageNumber = h.pageNumberList[i]
+			if h.pageNumber%2 == 0 {
+				h.offset = h.pageNumber*2 - 1
+			} else {
+				h.offset = h.pageNumber * 2
+			}
+			h.loadTeamsList(ctx)
+		}
 	}
 }

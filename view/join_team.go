@@ -40,7 +40,7 @@ func (j *JoinTeam) Render() app.UI {
 	return app.Div().Body(
 		app.Text("Join Team"),
 		app.Form().Body(
-			app.Input().Type("text").Value(j.teamName).
+			app.Input().Type("text").Value(j.teamName).Max(30).
 				Placeholder("Team name").
 				AutoFocus(true).
 				OnChange(j.ValueTo(&j.teamName)),
@@ -49,7 +49,7 @@ func (j *JoinTeam) Render() app.UI {
 				OnChange(j.ValueTo(&j.password)),
 		),
 		app.Button().Text("Join").OnClick(j.joinAction),
-		app.P().Text(j.errMessage),
+		app.P().Text(j.errMessage).Class("err-message"),
 	)
 }
 

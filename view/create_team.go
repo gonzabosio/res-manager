@@ -45,7 +45,7 @@ func (c *CreateTeam) Render() app.UI {
 	return app.Div().Body(
 		app.Text("Create Team"),
 		app.Form().Body(
-			app.Input().Type("text").Value(c.teamName).
+			app.Input().Type("text").Value(c.teamName).Max(30).
 				Placeholder("Team name").
 				AutoFocus(true).
 				OnChange(c.ValueTo(&c.teamName)),
@@ -54,7 +54,7 @@ func (c *CreateTeam) Render() app.UI {
 				OnChange(c.ValueTo(&c.password)),
 		),
 		app.Button().Text("Create").OnClick(c.createAction),
-		app.P().Text(c.errMessage),
+		app.P().Text(c.errMessage).Class("err-message"),
 	)
 }
 

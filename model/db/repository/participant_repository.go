@@ -3,7 +3,6 @@ package repository
 import (
 	"database/sql"
 	"fmt"
-	"log"
 
 	"github.com/gonzabosio/res-manager/model"
 )
@@ -56,7 +55,6 @@ func (s *DBService) AssignAdminRole(pId int64) error {
 }
 
 func (s *DBService) DeleteParticipantByID(teamId int64, pId int64) error {
-	log.Println(teamId, pId)
 	rows, err := s.DB.Query("SELECT id, admin FROM participant WHERE team_id=$1", teamId)
 	if err != nil {
 		return err

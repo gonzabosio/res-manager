@@ -31,12 +31,17 @@ func Routing() *chi.Mux {
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Resources Manager"))
 	})
+	r.Get("/teams", h.GetTeams)
+
+	r.Route("/auth", func(r chi.Router) {
+		r.Get("/google_login", h.GoogleLoginHandler)
+		r.Get("/google_callback", h.GoogleCallbackHandler)
+	})
 
 	r.Group(func(r chi.Router) {
 		r.Use(middlewares.OAuthMiddleware)
 		r.Post("/team", h.CreateTeam)
 		r.Post("/join-team", h.VerifyTeamByName)
-		r.Get("/team", h.GetTeams)
 		r.Patch("/team", h.ModifyTeam)
 		r.Delete("/team/{team-id}", h.DeleteTeam)
 
@@ -70,11 +75,6 @@ func Routing() *chi.Mux {
 		r.Post("/image", h.UploadImage)
 		r.Get("/image/{resource-id}", h.GetImages)
 		r.Delete("/image", h.DeleteImage)
-	})
-
-	r.Route("/auth", func(r chi.Router) {
-		r.Get("/google_login", h.GoogleLoginHandler)
-		r.Get("/google_callback", h.GoogleCallbackHandler)
 	})
 	return r
 }

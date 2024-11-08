@@ -96,7 +96,7 @@ func (p *ParticipantsList) OnMount(ctx app.Context) {
 
 func (p *ParticipantsList) Render() app.UI {
 	return app.Div().Body(
-		app.P().Text(p.errMessage),
+		app.P().Text(p.errMessage).Class("err-message"),
 		app.Button().Text("Exit").OnClick(func(ctx app.Context, e app.Event) {
 			p.exitTeam(ctx, e, p.pId)
 		}),

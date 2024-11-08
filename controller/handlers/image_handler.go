@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 
@@ -74,7 +73,6 @@ func (h *Handler) UploadImage(w http.ResponseWriter, r *http.Request) {
 		}, http.StatusBadRequest)
 		return
 	}
-	log.Println("Img TAG:", *res.ETag)
 	WriteJSON(w, map[string]interface{}{
 		"message":        fmt.Sprintf("Successfully uploaded %q to %q", filename, h.S3.Bucket),
 		"image_location": res.Location,

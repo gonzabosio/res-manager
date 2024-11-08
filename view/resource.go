@@ -67,7 +67,7 @@ func (r *Resource) Render() app.UI {
 					r.urlChanges = r.resource.URL
 					r.editMode = true
 				}),
-				app.P().Text(r.errMessage),
+				app.P().Text(r.errMessage).Class("err-message"),
 				app.If(r.resource.URL != "", func() app.UI {
 					return app.A().Text(r.resource.URL).Href(r.resource.URL)
 				}),
@@ -98,7 +98,7 @@ func (r *Resource) Render() app.UI {
 				app.Button().Text("Cancel").OnClick(func(ctx app.Context, e app.Event) {
 					r.editMode = false
 				}),
-				app.P().Text(r.errMessage),
+				app.P().Text(r.errMessage).Class("err-message"),
 				app.Input().Type("text").Placeholder("Title").Value(r.titleChanges).OnChange(r.ValueTo(&r.titleChanges)),
 				app.Input().Type("text").Placeholder("URL").Value(r.urlChanges).OnChange(r.ValueTo(&r.urlChanges)),
 				app.Input().Type("text").Placeholder("Content").Value(r.contentChanges).OnChange(r.ValueTo(&r.contentChanges)),

@@ -62,7 +62,7 @@ func (p *Project) Render() app.UI {
 				app.Input().Type("text").Placeholder("Title").Value(p.sectionTitleField).OnChange(p.ValueTo(&p.sectionTitleField)),
 				app.Button().Text("Add").OnClick(p.addNewSection),
 				app.Button().Text("Cancel").OnClick(p.toggleAddSectionForm),
-				app.P().Text(p.errMessage),
+				app.P().Text(p.errMessage).Class("err-message"),
 			)
 		}).ElseIf(p.modProjectForm, func() app.UI {
 			return app.Div().Body(
@@ -70,13 +70,13 @@ func (p *Project) Render() app.UI {
 				app.Input().Type("text").Placeholder("Details").Value(p.projectDetailsField).OnChange(p.ValueTo(&p.projectDetailsField)),
 				app.Button().Text("Accept").OnClick(p.modifyProject),
 				app.Button().Text("Cancel").OnClick(p.toggleProjectForm),
-				app.P().Text(p.errMessage),
+				app.P().Text(p.errMessage).Class("err-message"),
 			)
 		}).Else(func() app.UI {
 			return app.Div().Body(
 				app.Button().Text("Modify project").OnClick(p.toggleProjectForm),
 				app.Button().Text("Delete project").OnClick(p.deleteProject),
-				app.P().Text(p.errMessage),
+				app.P().Text(p.errMessage).Class("err-message"),
 				app.P().Text("Sections"),
 				app.Button().Text("Add section").OnClick(p.toggleAddSectionForm),
 				&p.Sections,

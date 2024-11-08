@@ -171,7 +171,7 @@ func (s *Sections) Render() app.UI {
 				}),
 			)
 		}),
-		app.P().Text(s.errMessage),
+		app.P().Text(s.errMessage).Class("err-message"),
 	)
 }
 

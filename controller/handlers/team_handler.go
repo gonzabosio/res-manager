@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"strconv"
 
@@ -37,7 +36,6 @@ func (h *Handler) CreateTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	team.Password = hashedPw
-	log.Println("hashed password", team.Password)
 	id, err := h.Service.CreateTeam(team)
 	if err != nil {
 		WriteJSON(w, map[string]string{
@@ -83,7 +81,38 @@ func (h *Handler) VerifyTeamByName(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetTeams(w http.ResponseWriter, r *http.Request) {
-	teams, err := h.Service.ReadTeams()
+	offsetStr := r.URL.Query().Get("offset")
+	var offset int
+	if offsetStr == "" {
+		offset = 0
+	} else {
+		var err error
+		offset, err = strconv.Atoi(offsetStr)
+		if err != nil {
+			WriteJSON(w, map[string]interface{}{
+				"message": "Could not parse offset query",
+				"error":   err.Error(),
+			}, http.StatusBadRequest)
+			return
+		}
+	}
+	limitStr := r.URL.Query().Get("limit")
+	var limit int
+	if limitStr == "" {
+		limit = 0
+	} else {
+		var err error
+		limit, err = strconv.Atoi(limitStr)
+		if err != nil {
+			WriteJSON(w, map[string]interface{}{
+				"message": "Could not parse limit query",
+				"error":   err.Error(),
+			}, http.StatusBadRequest)
+			return
+		}
+	}
+	filter := r.URL.Query().Get("filter")
+	teams, count, err := h.Service.ReadTeams(offset, limit, filter)
 	if err != nil {
 		WriteJSON(w, map[string]string{
 			"error": err.Error(),
@@ -99,6 +128,7 @@ func (h *Handler) GetTeams(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, map[string]interface{}{
 		"message": "Teams retrieved successfully",
 		"teams":   teams,
+		"count":   count,
 	}, http.StatusOK)
 }
 

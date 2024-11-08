@@ -91,7 +91,7 @@ func (p *ProjectList) Render() app.UI {
 					OnChange(p.ValueTo(&p.newProjectDetails)),
 				app.Button().Text("Add").OnClick(p.addProject),
 				app.Button().Text("Cancel").OnClick(p.switchFormView),
-				app.P().Text(p.errMessage),
+				app.P().Text(p.errMessage).Class("err-message"),
 			)
 		}).Else(func() app.UI {
 			return app.Div().Body(
@@ -106,7 +106,7 @@ func (p *ProjectList) Render() app.UI {
 						// Href(fmt.Sprintf("/dashboard/project?id=%d&name=%s", p.projectlist[i].Id, p.projectlist[i].Name))
 					)
 				}),
-				app.P().Text(p.errMessage),
+				app.P().Text(p.errMessage).Class("err-message"),
 			)
 		}),
 	)

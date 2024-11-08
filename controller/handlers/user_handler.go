@@ -29,7 +29,6 @@ func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	code := r.URL.Query().Get("code")
 	googleConfig := config.GoogleConfig()
-	log.Println(code)
 	token, err := googleConfig.Exchange(context.Background(), code)
 	if err != nil {
 		http.Error(w, "Code-Token Exchange Failed", http.StatusInternalServerError)

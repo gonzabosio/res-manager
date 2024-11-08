@@ -89,7 +89,7 @@ func (d *Dashboard) Render() app.UI {
 					OnChange(d.ValueTo(&d.newPassword)),
 				app.Button().Text("Accept").OnClick(d.editTeam),
 				app.Button().Text("Cancel").OnClick(d.toggleTeamForm),
-				app.P().Text(d.errMessage),
+				app.P().Text(d.errMessage).Class("err-message"),
 			)
 		}).Else(func() app.UI {
 			return app.Div().Body(
