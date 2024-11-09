@@ -60,25 +60,25 @@ func (p *Project) Render() app.UI {
 		app.If(p.showAddSectionForm, func() app.UI {
 			return app.Div().Body(
 				app.Input().Type("text").Placeholder("Title").Value(p.sectionTitleField).OnChange(p.ValueTo(&p.sectionTitleField)),
-				app.Button().Text("Add").OnClick(p.addNewSection),
-				app.Button().Text("Cancel").OnClick(p.toggleAddSectionForm),
+				app.Button().Text("Add").OnClick(p.addNewSection).Class("global-btn"),
+				app.Button().Text("Cancel").OnClick(p.toggleAddSectionForm).Class("global-btn"),
 				app.P().Text(p.errMessage).Class("err-message"),
 			)
 		}).ElseIf(p.modProjectForm, func() app.UI {
 			return app.Div().Body(
 				app.Input().Type("text").Placeholder("Name").Value(p.projectNameField).OnChange(p.ValueTo(&p.projectNameField)),
 				app.Input().Type("text").Placeholder("Details").Value(p.projectDetailsField).OnChange(p.ValueTo(&p.projectDetailsField)),
-				app.Button().Text("Accept").OnClick(p.modifyProject),
-				app.Button().Text("Cancel").OnClick(p.toggleProjectForm),
+				app.Button().Text("Accept").OnClick(p.modifyProject).Class("global-btn"),
+				app.Button().Text("Cancel").OnClick(p.toggleProjectForm).Class("global-btn"),
 				app.P().Text(p.errMessage).Class("err-message"),
 			)
 		}).Else(func() app.UI {
 			return app.Div().Body(
-				app.Button().Text("Modify project").OnClick(p.toggleProjectForm),
-				app.Button().Text("Delete project").OnClick(p.deleteProject),
+				app.Button().Text("Modify project").OnClick(p.toggleProjectForm).Class("global-btn"),
+				app.Button().Text("Delete project").OnClick(p.deleteProject).Class("global-btn"),
 				app.P().Text(p.errMessage).Class("err-message"),
 				app.P().Text("Sections"),
-				app.Button().Text("Add section").OnClick(p.toggleAddSectionForm),
+				app.Button().Text("Add section").OnClick(p.toggleAddSectionForm).Class("global-btn"),
 				&p.Sections,
 			)
 		}),
@@ -124,7 +124,6 @@ func (p *Project) modifyProject(ctx app.Context, e app.Event) {
 			p.errMessage = "Could not parse the project modifications"
 			return
 		}
-		app.Log("Project modified", body.Project)
 		p.project = body.Project
 		url := url.URL{
 			Path: "/dashboard/project",
@@ -139,8 +138,8 @@ func (p *Project) modifyProject(ctx app.Context, e app.Event) {
 	} else {
 		var body errResponseBody
 		if err = json.Unmarshal(b, &body); err != nil {
-			app.Log(err)
-			p.errMessage = "Could not parse the project modifications"
+			app.Log(body.Err)
+			p.errMessage = body.Message
 			return
 		}
 		app.Log(body.Err)

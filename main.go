@@ -26,11 +26,11 @@ func main() {
 	app.RunWhenOnBrowser()
 
 	http.Handle("/", &app.Handler{
-		Name:        "Resource Manager",
+		Name:        "Resur",
 		Description: "Projects requirements and resources manager",
-		Title:       "Resources Manager",
-		Icon:        app.Icon{SVG: "https://svgshare.com/i/1BQ6.svg"},
-		Styles:      []string{"/web/style/global.css"},
+		Title:       "Resur",
+		Icon:        app.Icon{SVG: "https://www.svgrepo.com/show/449746/files.svg"},
+		Styles:      []string{"/web/style/global.css", "/web/style/home.css", "/web/style/resource.css"},
 		Env: map[string]string{
 			"BACK_URL": os.Getenv("BACK_URL"),
 		},

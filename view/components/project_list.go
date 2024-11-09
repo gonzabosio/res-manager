@@ -59,7 +59,8 @@ func (p *ProjectList) OnMount(ctx app.Context) {
 	client := http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		p.errMessage = fmt.Sprintf("Failed getting projects: %v", err)
+		app.Log(err)
+		p.errMessage = "Failed getting projects"
 		return
 	}
 	b, err := io.ReadAll(res.Body)
@@ -89,22 +90,20 @@ func (p *ProjectList) Render() app.UI {
 				app.Input().Type("text").Placeholder("Project details").
 					Value(p.newProjectDetails).
 					OnChange(p.ValueTo(&p.newProjectDetails)),
-				app.Button().Text("Add").OnClick(p.addProject),
-				app.Button().Text("Cancel").OnClick(p.switchFormView),
+				app.Button().Text("Add").Class("global-btn").OnClick(p.addProject),
+				app.Button().Text("Cancel").Class("global-btn").OnClick(p.switchFormView),
 				app.P().Text(p.errMessage).Class("err-message"),
 			)
 		}).Else(func() app.UI {
 			return app.Div().Body(
 				app.P().Text("Projects"),
-				app.Button().Text("Add Project").OnClick(p.switchFormView),
+				app.Button().Text("Add Project").Class("global-btn").OnClick(p.switchFormView),
 				app.Range(p.projectlist).Slice(func(i int) app.UI {
-					return app.Div().Body(
-						app.A().Text(p.projectlist[i].Name).Href("/dashboard/project").OnClick(func(ctx app.Context, e app.Event) {
-							app.Log(p.projectlist[i].Id, p.projectlist[i].Name)
+					return app.A().Text(p.projectlist[i].Name).Href("/dashboard/project").Class("small-card").
+						OnClick(func(ctx app.Context, e app.Event) {
+							// app.Log(p.projectlist[i].Id, p.projectlist[i].Name)
 							ctx.SessionStorage().Set("project", p.projectlist[i])
-						}),
-						// Href(fmt.Sprintf("/dashboard/project?id=%d&name=%s", p.projectlist[i].Id, p.projectlist[i].Name))
-					)
+						})
 				}),
 				app.P().Text(p.errMessage).Class("err-message"),
 			)
@@ -124,7 +123,7 @@ func (p *ProjectList) addProject(ctx app.Context, e app.Event) {
 		p.errMessage = "All fields must be filled"
 		return
 	}
-	app.Log(fmt.Sprintf("Name: %v\nDetails: %v\nTeamID: %v", p.newProjectName, p.newProjectDetails, p.teamID))
+	// app.Log(fmt.Sprintf("Name: %v\nDetails: %v\nTeamID: %v", p.newProjectName, p.newProjectDetails, p.teamID))
 	req, err := http.NewRequest(http.MethodPost, app.Getenv("BACK_URL")+"/project", strings.NewReader(fmt.Sprintf(
 		`{"name":"%v","details":"%v","team_id":%d}`,
 		p.newProjectName, p.newProjectDetails, p.teamID)),

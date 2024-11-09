@@ -33,7 +33,7 @@ func (c *CreateTeam) OnMount(ctx app.Context) {
 		app.Log("Could not get user from local storage")
 	}
 	atCookie := app.Window().Call("getAccessTokenCookie")
-	app.Log("access token", atCookie.String())
+	// app.Log("access token", atCookie.String())
 	if atCookie.IsUndefined() {
 		ctx.Navigate("/")
 	} else {
@@ -45,7 +45,7 @@ func (c *CreateTeam) Render() app.UI {
 	return app.Div().Body(
 		app.Text("Create Team"),
 		app.Form().Body(
-			app.Input().Type("text").Value(c.teamName).Max(30).
+			app.Input().Type("text").Value(c.teamName).MaxLength(30).
 				Placeholder("Team name").
 				AutoFocus(true).
 				OnChange(c.ValueTo(&c.teamName)),
@@ -53,7 +53,7 @@ func (c *CreateTeam) Render() app.UI {
 				Placeholder("Password").
 				OnChange(c.ValueTo(&c.password)),
 		),
-		app.Button().Text("Create").OnClick(c.createAction),
+		app.Button().Text("Create").OnClick(c.createAction).Class("global-btn"),
 		app.P().Text(c.errMessage).Class("err-message"),
 	)
 }
@@ -88,7 +88,7 @@ func (c *CreateTeam) createAction(ctx app.Context, e app.Event) {
 				return
 			}
 			if res.StatusCode == http.StatusOK {
-				app.Log("Request successful:", string(b))
+				// app.Log("Request successful:", string(b))
 				var resBody okResponseBody
 				if err := json.Unmarshal(b, &resBody); err != nil {
 					app.Log(err)
@@ -135,7 +135,7 @@ func (c *CreateTeam) createAction(ctx app.Context, e app.Event) {
 							c.errMessage = "Could not parse the participant response"
 							return
 						}
-						app.Log("Participant retrieved", body.Participant)
+						// app.Log("Participant retrieved", body.Participant)
 						ctx.SessionStorage().Set("admin", true)
 						ctx.Navigate("dashboard")
 					} else {
@@ -150,10 +150,10 @@ func (c *CreateTeam) createAction(ctx app.Context, e app.Event) {
 					}
 				})
 			} else {
-				app.Log("Request failed with status:", res.StatusCode)
 				var resBody errResponseBody
 				if err := json.Unmarshal(b, &resBody); err != nil {
 					c.errMessage = "Failed to parse json"
+					app.Log(resBody.Err)
 					return
 				}
 				app.Log(resBody.Err)

@@ -53,7 +53,7 @@ func (h *Home) OnMount(ctx app.Context) {
 		app.Log("Could not get user from local storage")
 	}
 	atCookie := app.Window().Call("getAccessTokenCookie")
-	app.Log("access token", atCookie.String())
+	// app.Log("access token", atCookie.String())
 	if atCookie.IsUndefined() {
 		h.accessToken = ""
 	} else {
@@ -71,7 +71,6 @@ func (h *Home) OnMount(ctx app.Context) {
 			h.errMessage = "Response JSON Parsing Failed"
 			return
 		}
-		app.Log(string(userData))
 		if err := json.Unmarshal(userData, &googleUser); err != nil {
 			h.errMessage = "User JSON Parsing Failed"
 			return
@@ -106,7 +105,6 @@ func (h *Home) OnMount(ctx app.Context) {
 				h.errMessage = "Could not parse the user response"
 				return
 			}
-			app.Log("User retrieved", body.User)
 			h.user = body.User
 			ctx.SessionStorage().Set("user", h.user)
 		} else {
@@ -123,15 +121,18 @@ func (h *Home) OnMount(ctx app.Context) {
 }
 
 func (h *Home) Render() app.UI {
-	return app.Div().Body(
-		app.H1().Text("Resources Manager"),
+	return app.Div().Class("container-home").Body(
+		app.Div().Class("title-container").Body(
+			app.Img().Src("https://www.svgrepo.com/show/449746/files.svg").Width(100),
+			app.H1().Text("RESUR").ID("title"),
+		),
 		app.If(h.accessToken != "", func() app.UI {
 			return app.Div().Body(
 				app.If(h.showUpdateUserForm, func() app.UI {
 					return app.Div().Body(
 						app.Input().Placeholder("New username").Value(h.newUsername).OnChange(h.ValueTo(&h.newUsername)),
-						app.Button().Text("Save").OnClick(h.modifyUser),
-						app.Button().Text("Cancel").OnClick(func(ctx app.Context, e app.Event) {
+						app.Button().Text("Save").OnClick(h.modifyUser).Class("global-btn"),
+						app.Button().Text("Cancel").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
 							h.newUsername = ""
 							h.showUpdateUserForm = false
 						}),
@@ -139,18 +140,18 @@ func (h *Home) Render() app.UI {
 				}).Else(func() app.UI {
 					return app.Div().Body(
 						app.P().Text("Hello "+h.user.Username),
-						app.Button().Text("Create Team").OnClick(func(ctx app.Context, e app.Event) {
+						app.Button().Text("Create Team").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
 							ctx.Navigate("/create-team")
 						}),
-						app.Button().Text("Join Team").OnClick(func(ctx app.Context, e app.Event) {
+						app.Button().Text("Join Team").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
 							ctx.Navigate("/join-team")
 						}),
 						app.Div().Body(
-							app.Button().Text("Modify username").OnClick(func(ctx app.Context, e app.Event) {
+							app.Button().Text("Modify username").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
 								h.showUpdateUserForm = true
 							}),
-							app.Button().Text("Delete user").OnClick(h.deleteUser),
-							app.Button().Text("Sign Out").OnClick(func(ctx app.Context, e app.Event) {
+							app.Button().Text("Delete user").Class("global-btn").OnClick(h.deleteUser),
+							app.Button().Text("Sign Out").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
 								app.Window().Call("deleteAccessTokenCookie")
 								ctx.SessionStorage().Del("user")
 								ctx.Reload()
@@ -160,20 +161,17 @@ func (h *Home) Render() app.UI {
 				}),
 			)
 		}).Else(func() app.UI {
-			return app.Div().Body(
-				app.A().Text("Sign in with Google").Href(fmt.Sprintf("%v/auth/google_login", app.Getenv("BACK_URL"))),
-			)
+			return app.A().Text("Sign in with Google").Href(fmt.Sprintf("%v/auth/google_login", app.Getenv("BACK_URL"))).
+				Class("global-btn").ID("google-login")
 		}),
 		app.P().Text(h.errMessage).Class("err-message"),
 		app.P().Text("Teams List"),
 		app.Div().Body(
-			app.Input().Type("text").Value(h.teamFilter).Max(30).OnChange(h.ValueTo(&h.teamFilter)).Class("search-bar"),
+			app.Input().Type("text").Placeholder("Team name").Value(h.teamFilter).MaxLength(30).OnChange(h.ValueTo(&h.teamFilter)).Class("search-bar"),
 			app.Button().Text("Search").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
-				if h.teamFilter != "" {
-					h.offset = 0
-					h.loadTeamsList(ctx)
-					h.pageNumber = 1
-				}
+				h.offset = 0
+				h.loadTeamsList(ctx)
+				h.pageNumber = 1
 			}),
 		).Class("search-filter"),
 		app.Div().Class("card-container").Body(
@@ -185,7 +183,7 @@ func (h *Home) Render() app.UI {
 			}),
 		),
 		app.Div().Body(
-			app.Button().Text("<-").OnClick(func(ctx app.Context, e app.Event) {
+			app.Button().Text("<").Class("pagination-btn").OnClick(func(ctx app.Context, e app.Event) {
 				if h.pageNumber > 1 {
 					h.pageNumber--
 					h.offset -= 3
@@ -193,17 +191,17 @@ func (h *Home) Render() app.UI {
 				}
 			}),
 			app.Range(h.pageNumberList).Slice(func(i int) app.UI {
-				return app.Button().Text(h.pageNumberList[i]).Disabled(h.pageNumberList[i] == h.pageNumber).OnClick(func(ctx app.Context, e app.Event) {
-					h.paginationBtn(ctx, i)
-				})
+				return app.Button().Class("pagination-btn").Text(h.pageNumberList[i]).Disabled(h.pageNumberList[i] == h.pageNumber).
+					OnClick(func(ctx app.Context, e app.Event) {
+						h.paginationBtn(ctx, i)
+					})
 			}),
-			app.Button().Text("->").OnClick(func(ctx app.Context, e app.Event) {
+			app.Button().Text(">").Class("pagination-btn").OnClick(func(ctx app.Context, e app.Event) {
 				if h.pageNumber < h.totalPages {
 					h.pageNumber++
 					h.offset += 3
 					h.loadTeamsList(ctx)
 				} else {
-					app.Log("Maximum team items reached")
 				}
 			}),
 		).Class("pagination-bar"),
@@ -234,7 +232,6 @@ func (h *Home) deleteUser(ctx app.Context, e app.Event) {
 			return
 		}
 		if res.StatusCode == http.StatusOK {
-			app.Log("User deleted successfully")
 			app.Window().Call("deleteAccessTokenCookie")
 			h.accessToken = ""
 			ctx.Dispatch(func(ctx app.Context) {})
@@ -285,7 +282,7 @@ func (h *Home) modifyUser(ctx app.Context, e app.Event) {
 		h.user = body.User
 		ctx.SessionStorage().Set("user", h.user)
 		h.showUpdateUserForm = false
-		app.Log(h.showUpdateUserForm)
+		// app.Log(h.showUpdateUserForm)
 	} else {
 		var body errResponseBody
 		if err = json.Unmarshal(b, &body); err != nil {
@@ -299,7 +296,7 @@ func (h *Home) modifyUser(ctx app.Context, e app.Event) {
 }
 
 func (h *Home) loadTeamsList(ctx app.Context) {
-	app.Log(h.limit, h.offset, h.teamFilter)
+	// app.Log(h.limit, h.offset, h.teamFilter)
 	var (
 		res *http.Response
 		err error
@@ -327,7 +324,7 @@ func (h *Home) loadTeamsList(ctx app.Context) {
 		}
 		h.teamsList = teamsList.Teams
 		h.totalTeams = teamsList.Count
-		app.Log("Total teams", h.totalTeams)
+		// app.Log("Total teams", h.totalTeams)
 		h.pageNumberList = []int{}
 		h.totalPages = h.totalTeams / 3
 		if h.totalTeams%3 != 0 {
@@ -336,7 +333,7 @@ func (h *Home) loadTeamsList(ctx app.Context) {
 		for i := 1; i <= h.totalPages; i++ {
 			h.pageNumberList = append(h.pageNumberList, i)
 		}
-		app.Log("Page number List:", h.pageNumberList)
+		// app.Log("Page number List:", h.pageNumberList)
 		ctx.Dispatch(func(ctx app.Context) {})
 	} else {
 		var errResBody errResponseBody

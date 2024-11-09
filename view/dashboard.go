@@ -65,14 +65,14 @@ func (d *Dashboard) Render() app.UI {
 		app.H1().Text(fmt.Sprintf("Dashboard of %v", d.team.Name)),
 		app.If(d.admin, func() app.UI {
 			return app.Div().Body(
-				app.Button().Text("Edit").OnClick(d.toggleTeamForm),
-				app.Button().Text("Delete").OnClick(d.deleteTeam),
+				app.Button().Text("Edit").OnClick(d.toggleTeamForm).Class("global-btn"),
+				app.Button().Text("Delete").OnClick(d.deleteTeam).Class("global-btn"),
 			)
 		}),
-		app.Button().Text("Change Team").OnClick(d.changeTeam),
+		app.Button().Text("Change Team").OnClick(d.changeTeam).Class("global-btn"),
 		app.If(d.showParticipants, func() app.UI {
 			return app.Div().Body(
-				app.Button().Text("Projects").OnClick(func(ctx app.Context, e app.Event) {
+				app.Button().Text("Projects").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
 					d.showParticipants = false
 				}),
 				&d.ParticipantsList,
@@ -87,13 +87,13 @@ func (d *Dashboard) Render() app.UI {
 					Value(d.newPassword).
 					AutoFocus(true).
 					OnChange(d.ValueTo(&d.newPassword)),
-				app.Button().Text("Accept").OnClick(d.editTeam),
-				app.Button().Text("Cancel").OnClick(d.toggleTeamForm),
+				app.Button().Text("Accept").Class("global-btn").OnClick(d.editTeam),
+				app.Button().Text("Cancel").Class("global-btn").OnClick(d.toggleTeamForm),
 				app.P().Text(d.errMessage).Class("err-message"),
 			)
 		}).Else(func() app.UI {
 			return app.Div().Body(
-				app.Button().Text("Participants").OnClick(func(ctx app.Context, e app.Event) {
+				app.Button().Text("Participants").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
 					d.showParticipants = true
 				}),
 				&d.ProjectList,
@@ -115,7 +115,6 @@ func (d *Dashboard) editTeam(ctx app.Context, e app.Event) {
 	reqBody := fmt.Sprintf(`{"id":%v, "name":"%v","password":"%v"}`, d.team.Id, d.newTeamName, d.newPassword)
 	reader := strings.NewReader(reqBody)
 	req, err := http.NewRequest(http.MethodPatch, fmt.Sprintf("%v/team", app.Getenv("BACK_URL")), reader)
-	app.Log("Edit team with the new name:", d.newTeamName)
 	if err != nil {
 		app.Log(err)
 		d.errMessage = "Failed modifying team"
@@ -142,7 +141,6 @@ func (d *Dashboard) editTeam(ctx app.Context, e app.Event) {
 			d.errMessage = "Could not parse the team modifications"
 			return
 		}
-		app.Log("New team", body.Team)
 		d.team = body.Team
 		ctx.LocalStorage().Set("teamName", d.team.Name)
 		teamIDstr := strconv.FormatInt(d.team.Id, 10)
@@ -167,7 +165,6 @@ func (d *Dashboard) editTeam(ctx app.Context, e app.Event) {
 }
 
 func (d *Dashboard) deleteTeam(ctx app.Context, e app.Event) {
-	app.Log("Delete:", d.team.Name)
 	client := http.Client{}
 	req, err := http.NewRequest(
 		http.MethodDelete, fmt.Sprintf("%v/team/%v", app.Getenv("BACK_URL"), d.team.Id), nil,

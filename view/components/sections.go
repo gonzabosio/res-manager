@@ -83,7 +83,8 @@ func (s *Sections) OnMount(ctx app.Context) {
 	client := http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		s.errMessage = fmt.Sprintf("Failed getting sections: %v", err)
+		app.Log(err)
+		s.errMessage = "Failed getting sections"
 		return
 	}
 	b, err := io.ReadAll(res.Body)
@@ -114,23 +115,27 @@ func (s *Sections) Render() app.UI {
 	return app.Div().Body(
 		app.If(s.showResourcesList, func() app.UI {
 			return app.Div().Body(
-				app.Button().Text("Create resource").OnClick(s.toggleShowResourceForm),
-				app.Button().Text("Back to sections").OnClick(s.toggleResourcesListView),
+				app.Button().Text("Create resource").Class("global-btn").OnClick(s.toggleShowResourceForm),
+				app.Button().Text("Back to sections").Class("global-btn").OnClick(s.toggleResourcesListView),
 				app.Range(s.resourcesList).Slice(func(i int) app.UI {
 					return app.Div().Body(
-						app.A().Text(s.resourcesList[i].Title).Href(fmt.Sprintf("/dashboard/project/res?sid=%d&stitle=%s", s.section.Id, url.QueryEscape(s.section.Title)))).OnClick(func(ctx app.Context, e app.Event) {
-						ctx.SessionStorage().Set("resource", s.resourcesList[i])
-					})
+						app.A().Text(s.resourcesList[i].Title).Href(
+							fmt.Sprintf("/dashboard/project/res?sid=%d&stitle=%s", s.section.Id, url.QueryEscape(s.section.Title))).
+							Class("small-card", "resource-card").
+							OnClick(func(ctx app.Context, e app.Event) {
+								ctx.SessionStorage().Set("resource", s.resourcesList[i])
+							}),
+					)
 				}),
 			)
 		}).ElseIf(s.showResourcesForm, func() app.UI {
 			return app.Div().Body(
 				app.Input().Type("text").Placeholder("Title").Value(s.resource.Title).OnChange(s.ValueTo(&s.resource.Title)),
-				app.Button().Text("Create").OnClick(s.addResource),
-				app.Button().Text("Cancel").OnClick(s.toggleShowResourceForm),
+				app.Button().Text("Create").Class("global-btn").OnClick(s.addResource),
+				app.Button().Text("Cancel").Class("global-btn").OnClick(s.toggleShowResourceForm),
 				app.Form().EncType("multipart/form-data").Body(
 					app.Input().Type("file").ID("fileInput").Name("file").Accept(".csv"),
-					app.Button().Type("submit").Text("Upload CSV").OnClick(func(ctx app.Context, e app.Event) {
+					app.Button().Type("submit").Text("Upload CSV").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
 						e.PreventDefault()
 						sectionIdStr := strconv.Itoa(int(s.section.Id))
 						app.Window().Call("uploadCSV", app.Getenv("BACK_URL"), s.accessToken, s.user.Username, sectionIdStr)
@@ -142,26 +147,26 @@ func (s *Sections) Render() app.UI {
 		}).ElseIf(s.showSectionForm, func() app.UI {
 			return app.Div().Body(
 				app.Input().Type("text").Placeholder("Title").Value(s.newSectionTitle).OnChange(s.ValueTo(&s.newSectionTitle)),
-				app.Button().Text("Edit").OnClick(s.modifySection),
-				app.Button().Text("Cancel").OnClick(s.toggleUpdateSectionForm),
+				app.Button().Text("Edit").Class("global-btn").OnClick(s.modifySection),
+				app.Button().Text("Cancel").Class("global-btn").OnClick(s.toggleUpdateSectionForm),
 			)
 		}).Else(func() app.UI {
 			return app.Div().Body(
 				app.Range(s.sectionsList).Slice(func(i int) app.UI {
-					return app.Div().OnClick(func(ctx app.Context, e app.Event) {
+					return app.Div().Class("small-card").OnClick(func(ctx app.Context, e app.Event) {
 						s.toggleResourcesListView(ctx, e)
 						s.section.Id = s.sectionsList[i].Id
 						s.section.Title = s.sectionsList[i].Title
 						s.loadResources(ctx, e)
 					}).Body(
 						app.P().Text(s.sectionsList[i].Title),
-						app.Button().Text("Edit").OnClick(func(ctx app.Context, e app.Event) {
+						app.Button().Text("Edit").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
 							e.StopImmediatePropagation()
 							s.section = s.sectionsList[i]
 							s.sectionIdx = i
 							s.toggleUpdateSectionForm(ctx, e)
 						}),
-						app.Button().Text("Delete").OnClick(func(ctx app.Context, e app.Event) {
+						app.Button().Text("Delete").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
 							e.StopImmediatePropagation()
 							s.section = s.sectionsList[i]
 							s.sectionIdx = i
@@ -187,7 +192,8 @@ func (s *Sections) loadResources(ctx app.Context, e app.Event) {
 	client := http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		s.errMessage = fmt.Sprintf("Failed getting resources: %v", err)
+		app.Log(err)
+		s.errMessage = "Failed getting resources"
 		return
 	}
 	b, err := io.ReadAll(res.Body)
@@ -280,7 +286,7 @@ func (s *Sections) toggleShowResourceForm(ctx app.Context, e app.Event) {
 }
 
 func (s *Sections) deleteSection(ctx app.Context, e app.Event) {
-	app.Log("Delete section", s.section, s.sectionIdx)
+	// app.Log("Delete section", s.section, s.sectionIdx)
 	client := http.Client{}
 	req, err := http.NewRequest(
 		http.MethodDelete, fmt.Sprintf("%v/section/%v", app.Getenv("BACK_URL"), s.section.Id), nil,
@@ -315,7 +321,7 @@ func (s *Sections) toggleUpdateSectionForm(ctx app.Context, e app.Event) {
 }
 
 func (s *Sections) modifySection(ctx app.Context, e app.Event) {
-	app.Log(s.section)
+	// app.Log(s.section)
 	if s.newSectionTitle == "" {
 		s.errMessage = "The field is empty"
 		return
@@ -348,7 +354,6 @@ func (s *Sections) modifySection(ctx app.Context, e app.Event) {
 			s.errMessage = "Could not parse the section modifications"
 			return
 		}
-		app.Log("Section modified", body.Section)
 		s.section = body.Section
 		s.sectionsList[s.sectionIdx] = s.section
 		s.errMessage = ""

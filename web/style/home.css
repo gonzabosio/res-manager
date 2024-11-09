@@ -1,0 +1,45 @@
+#title {
+    font-style: italic;
+    font-size: 4em;
+    font-family: monospace;
+}
+
+.search-filter {
+    display: flex;
+    align-items: center;
+}
+
+.pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#google-login {
+    text-decoration: none;
+}
+
+.pagination-btn {
+    background-color: transparent;
+    border: 2px solid cornflowerblue;
+    cursor: pointer;
+    font-size: 24px;
+    width: 42px;
+    height: 42px;
+    transition: 0.3s;
+
+    &:hover {
+        background-color: rgba(100, 150, 235, 0.5);
+    }
+}
+
+.title-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    border-radius: 0.5em;
+    padding: 1em;
+    margin-bottom: 2em;
+    border: 8px dashed rgba(100, 148, 237, 0.5);
+}

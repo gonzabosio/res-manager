@@ -35,9 +35,8 @@ func (p *ParticipantsList) OnMount(ctx app.Context) {
 	if err := ctx.SessionStorage().Get("admin", &p.admin); err != nil {
 		app.Log("Could not get the admin data from session storage")
 	}
-	app.Log(p.admin)
 	atCookie := app.Window().Call("getAccessTokenCookie")
-	app.Log("access token", atCookie.String())
+	// app.Log("access token", atCookie.String())
 	if atCookie.IsUndefined() {
 		ctx.Navigate("dashboard")
 	} else {
@@ -56,7 +55,7 @@ func (p *ParticipantsList) OnMount(ctx app.Context) {
 	p.teamId = teamID
 	//load participants list
 	getURL := fmt.Sprintf("%v/participant/%v", app.Getenv("BACK_URL"), p.teamId)
-	app.Log(getURL)
+	// app.Log(getURL)
 	req, err := http.NewRequest(http.MethodGet, getURL, nil)
 	if err != nil {
 		p.errMessage = "Could not build participant request"
@@ -86,8 +85,8 @@ func (p *ParticipantsList) OnMount(ctx app.Context) {
 		return
 	}
 	if res.StatusCode == http.StatusOK {
-		app.Log(pResp.Message)
-		app.Log(pResp.Participants)
+		// app.Log(pResp.Message)
+		// app.Log(pResp.Participants)
 		p.participants = pResp.Participants
 	} else {
 
@@ -97,7 +96,7 @@ func (p *ParticipantsList) OnMount(ctx app.Context) {
 func (p *ParticipantsList) Render() app.UI {
 	return app.Div().Body(
 		app.P().Text(p.errMessage).Class("err-message"),
-		app.Button().Text("Exit").OnClick(func(ctx app.Context, e app.Event) {
+		app.Button().Text("Exit").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
 			p.exitTeam(ctx, e, p.pId)
 		}),
 		app.Range(p.participants).Slice(func(i int) app.UI {
@@ -114,11 +113,11 @@ func (p *ParticipantsList) Render() app.UI {
 				}),
 				app.If(p.participants[i].UserId != p.user.Id && p.admin, func() app.UI {
 					return app.Div().Body(
-						app.Button().Text("Delete").OnClick(func(ctx app.Context, e app.Event) {
+						app.Button().Text("Delete").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
 							p.deleteParticipant(ctx, e, p.participants[i].Id)
 						}),
 						app.If(!p.participants[i].Admin, func() app.UI {
-							return app.Button().Text("Give Admin").OnClick(func(ctx app.Context, e app.Event) {
+							return app.Button().Text("Give Admin").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
 								p.giveAdmin(ctx, e, p.participants[i].Id)
 							})
 						}),

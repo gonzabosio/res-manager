@@ -28,7 +28,7 @@ func (c *JoinTeam) OnMount(ctx app.Context) {
 		app.Log("Could not get user from local storage")
 	}
 	atCookie := app.Window().Call("getAccessTokenCookie")
-	app.Log("access token", atCookie.String())
+	// app.Log("access token", atCookie.String())
 	if atCookie.IsUndefined() {
 		ctx.Navigate("/")
 	} else {
@@ -40,7 +40,7 @@ func (j *JoinTeam) Render() app.UI {
 	return app.Div().Body(
 		app.Text("Join Team"),
 		app.Form().Body(
-			app.Input().Type("text").Value(j.teamName).Max(30).
+			app.Input().Type("text").Value(j.teamName).MaxLength(30).
 				Placeholder("Team name").
 				AutoFocus(true).
 				OnChange(j.ValueTo(&j.teamName)),
@@ -48,7 +48,7 @@ func (j *JoinTeam) Render() app.UI {
 				Placeholder("Password").
 				OnChange(j.ValueTo(&j.password)),
 		),
-		app.Button().Text("Join").OnClick(j.joinAction),
+		app.Button().Text("Join").OnClick(j.joinAction).Class("global-btn"),
 		app.P().Text(j.errMessage).Class("err-message"),
 	)
 }
@@ -82,7 +82,6 @@ func (j *JoinTeam) joinAction(ctx app.Context, e app.Event) {
 				return
 			}
 			if res.StatusCode == http.StatusOK {
-				app.Log("Request successful:", string(b))
 				var resBody okResponseBody
 				if err := json.Unmarshal(b, &resBody); err != nil {
 					app.Log(err)
@@ -130,25 +129,24 @@ func (j *JoinTeam) joinAction(ctx app.Context, e app.Event) {
 							j.errMessage = "Could not parse the participant response"
 							return
 						}
-						app.Log("Participant retrieved", body.Participant)
 						ctx.SessionStorage().Set("admin", body.Participant.Admin)
 						ctx.Navigate("dashboard")
 					} else {
 						var body errResponseBody
 						if err = json.Unmarshal(b, &body); err != nil {
 							app.Log(err)
-							j.errMessage = "Could not parse the participant data"
+							j.errMessage = body.Message
 							return
 						}
-						app.Log(body.Message, body.Err)
+						app.Log(body.Err)
 						j.errMessage = body.Message
 					}
 				})
 			} else {
-				app.Log("Request failed with status:", res.StatusCode)
 				var resBody errResponseBody
 				if err := json.Unmarshal(b, &resBody); err != nil {
 					j.errMessage = "Failed to parse json"
+					app.Log(resBody.Err)
 					return
 				}
 				app.Log(resBody.Err)

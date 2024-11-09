@@ -68,8 +68,10 @@ async function uploadImage(backURL, token, resourceId) {
         const resBody = await response.json()
         if (response.ok) {
             console.log("Image uploaded successfully", resBody)
+            document.getElementById("info-message").innerText = "Image uploaded successfully"
         } else {
             console.log("Failed to upload image", resBody)
+            document.getElementById("err-message").innerText = "Failed to upload image"
         }
     } catch (error) {
         console.error("Error uploading image:", error)
