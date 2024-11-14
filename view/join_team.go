@@ -23,16 +23,13 @@ type JoinTeam struct {
 	accessToken string
 }
 
-func (c *JoinTeam) OnMount(ctx app.Context) {
-	if err := ctx.SessionStorage().Get("user", &c.user); err != nil {
+func (j *JoinTeam) OnMount(ctx app.Context) {
+	if err := ctx.SessionStorage().Get("user", &j.user); err != nil {
 		app.Log("Could not get user from local storage")
 	}
-	atCookie := app.Window().Call("getAccessTokenCookie")
-	// app.Log("access token", atCookie.String())
-	if atCookie.IsUndefined() {
+	if err := ctx.LocalStorage().Get("access-token", &j.accessToken); err != nil {
+		app.Log(err)
 		ctx.Navigate("/")
-	} else {
-		c.accessToken = atCookie.String()
 	}
 }
 
@@ -131,6 +128,9 @@ func (j *JoinTeam) joinAction(ctx app.Context, e app.Event) {
 						}
 						ctx.SessionStorage().Set("admin", body.Participant.Admin)
 						ctx.Navigate("dashboard")
+					} else if res.StatusCode == http.StatusUnauthorized {
+						ctx.LocalStorage().Del("access-token")
+						ctx.Navigate("/")
 					} else {
 						var body errResponseBody
 						if err = json.Unmarshal(b, &body); err != nil {
@@ -142,6 +142,9 @@ func (j *JoinTeam) joinAction(ctx app.Context, e app.Event) {
 						j.errMessage = body.Message
 					}
 				})
+			} else if res.StatusCode == http.StatusUnauthorized {
+				ctx.LocalStorage().Del("access-token")
+				ctx.Navigate("/")
 			} else {
 				var resBody errResponseBody
 				if err := json.Unmarshal(b, &resBody); err != nil {

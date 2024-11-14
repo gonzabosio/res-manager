@@ -32,11 +32,10 @@ type projectsResponse struct {
 }
 
 func (p *ProjectList) OnMount(ctx app.Context) {
-	atCookie := app.Window().Call("getAccessTokenCookie")
-	if atCookie.IsUndefined() {
+	if err := ctx.LocalStorage().Get("access-token", &p.accessToken); err != nil {
+		app.Log(err)
 		ctx.Navigate("/")
-	} else {
-		p.accessToken = atCookie.String()
+		return
 	}
 	var teamIDstr string
 	if err := ctx.LocalStorage().Get("teamID", &teamIDstr); err != nil {
@@ -73,9 +72,20 @@ func (p *ProjectList) OnMount(ctx app.Context) {
 		var resBody projectsResponse
 		if err = json.Unmarshal(b, &resBody); err != nil {
 			app.Log(err)
-			p.errMessage = "Failed parsing projects data"
+			p.errMessage = "Failed to parse projects data"
 		}
 		p.projectlist = resBody.Projects
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
+		ctx.Navigate("/")
+	} else {
+		var resBody errResponseBody
+		if err = json.Unmarshal(b, &resBody); err != nil {
+			app.Log(err)
+			p.errMessage = "Failed to parse error by trying to get projects data"
+		}
+		p.errMessage = resBody.Message
+		app.Log(resBody.Err)
 	}
 }
 
@@ -162,6 +172,9 @@ func (p *ProjectList) addProject(ctx app.Context, e app.Event) {
 		p.projectlist = resBody.Projects
 		p.showAddProjectForm = false
 		ctx.Reload()
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
+		ctx.Navigate("/")
 	} else {
 		var resBody errResponseBody
 		err := json.Unmarshal(b, &resBody)

@@ -66,11 +66,10 @@ func (s *Sections) OnMount(ctx app.Context) {
 	if err := ctx.SessionStorage().Get("user", &s.user); err != nil {
 		app.Log("Could not get user from local storage")
 	}
-	atCookie := app.Window().Call("getAccessTokenCookie")
-	if atCookie.IsUndefined() {
+	if err := ctx.LocalStorage().Get("access-token", &s.accessToken); err != nil {
+		app.Log(err)
 		ctx.Navigate("/")
-	} else {
-		s.accessToken = atCookie.String()
+		return
 	}
 	ctx.SessionStorage().Get("project", &s.project)
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%v/section/%v", app.Getenv("BACK_URL"), s.project.Id), nil)
@@ -100,6 +99,9 @@ func (s *Sections) OnMount(ctx app.Context) {
 			s.errMessage = "Failed parsing sections data"
 		}
 		s.sectionsList = resBody.Sections
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
+		ctx.Navigate("/")
 	} else {
 		var resBody errResponseBody
 		if err = json.Unmarshal(b, &resBody); err != nil {
@@ -135,13 +137,7 @@ func (s *Sections) Render() app.UI {
 				app.Button().Text("Cancel").Class("global-btn").OnClick(s.toggleShowResourceForm),
 				app.Form().EncType("multipart/form-data").Body(
 					app.Input().Type("file").ID("fileInput").Name("file").Accept(".csv"),
-					app.Button().Type("submit").Text("Upload CSV").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
-						e.PreventDefault()
-						sectionIdStr := strconv.Itoa(int(s.section.Id))
-						app.Window().Call("uploadCSV", app.Getenv("BACK_URL"), s.accessToken, s.user.Username, sectionIdStr)
-						time.Sleep(500 * time.Millisecond)
-						ctx.Navigate(fmt.Sprintf("/dashboard/project/res?sid=%d&stitle=%s", s.section.Id, url.QueryEscape(s.section.Title)))
-					}),
+					app.Button().Type("submit").Text("Upload CSV").Class("global-btn").OnClick(s.loadResourceDataFromCSV),
 				),
 			)
 		}).ElseIf(s.showSectionForm, func() app.UI {
@@ -157,7 +153,7 @@ func (s *Sections) Render() app.UI {
 						s.toggleResourcesListView(ctx, e)
 						s.section.Id = s.sectionsList[i].Id
 						s.section.Title = s.sectionsList[i].Title
-						s.loadResources(ctx, e)
+						s.loadResources(ctx)
 					}).Body(
 						app.P().Text(s.sectionsList[i].Title),
 						app.Button().Text("Edit").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
@@ -170,7 +166,7 @@ func (s *Sections) Render() app.UI {
 							e.StopImmediatePropagation()
 							s.section = s.sectionsList[i]
 							s.sectionIdx = i
-							s.deleteSection(ctx, e)
+							s.deleteSection(ctx)
 						}),
 					)
 				}),
@@ -180,7 +176,7 @@ func (s *Sections) Render() app.UI {
 	)
 }
 
-func (s *Sections) loadResources(ctx app.Context, e app.Event) {
+func (s *Sections) loadResources(ctx app.Context) {
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%v/resource/%v", app.Getenv("BACK_URL"), s.section.Id), nil)
 	if err != nil {
 		s.errMessage = "Could not load resources"
@@ -209,6 +205,9 @@ func (s *Sections) loadResources(ctx app.Context, e app.Event) {
 			s.errMessage = "Failed parsing resources data"
 		}
 		s.resourcesList = resBody.Resources
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
+		ctx.Navigate("/")
 	} else {
 		var errRes errResponseBody
 		s.errMessage = errRes.Message
@@ -255,6 +254,9 @@ func (s *Sections) addResource(ctx app.Context, e app.Event) {
 		ctx.SessionStorage().Set("resource", s.resource)
 		ctx.Navigate(fmt.Sprintf("/dashboard/project/res?sid=%d&stitle=%s", s.section.Id, url.QueryEscape(s.section.Title)))
 		// ctx.Navigate("/dashboard/project/res")
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
+		ctx.Navigate("/")
 	} else {
 		app.Log("Request failed with status:", res.StatusCode)
 		var resBody errResponseBody
@@ -285,7 +287,7 @@ func (s *Sections) toggleShowResourceForm(ctx app.Context, e app.Event) {
 	}
 }
 
-func (s *Sections) deleteSection(ctx app.Context, e app.Event) {
+func (s *Sections) deleteSection(ctx app.Context) {
 	// app.Log("Delete section", s.section, s.sectionIdx)
 	client := http.Client{}
 	req, err := http.NewRequest(
@@ -307,6 +309,9 @@ func (s *Sections) deleteSection(ctx app.Context, e app.Event) {
 	if res.StatusCode == http.StatusOK {
 		s.sectionsList = slices.Delete(s.sectionsList, s.sectionIdx, s.sectionIdx)
 		ctx.Reload()
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
+		ctx.Navigate("/")
 	} else {
 		app.Log(err)
 		s.errMessage = "Failed to delete section"
@@ -359,6 +364,9 @@ func (s *Sections) modifySection(ctx app.Context, e app.Event) {
 		s.errMessage = ""
 		s.newSectionTitle = ""
 		s.showSectionForm = false
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
+		ctx.Navigate("/")
 	} else {
 		var body errResponseBody
 		if err = json.Unmarshal(b, &body); err != nil {
@@ -369,4 +377,31 @@ func (s *Sections) modifySection(ctx app.Context, e app.Event) {
 		app.Log(body.Err)
 		s.errMessage = body.Message
 	}
+}
+
+func (s *Sections) loadResourceDataFromCSV(ctx app.Context, e app.Event) {
+	type resourceObj struct {
+		ID json.Number `json:"resource_id"`
+	}
+	e.PreventDefault()
+	sectionIdStr := strconv.Itoa(int(s.section.Id))
+	app.Window().Call("uploadCSV", app.Getenv("BACK_URL"), s.accessToken, s.user.Username, sectionIdStr)
+	var resObj resourceObj
+	time.Sleep(time.Second)
+	if err := ctx.SessionStorage().Get("resource-id", &resObj.ID); err != nil {
+		app.Log(err)
+		s.errMessage = "Failed to create resource"
+		return
+	}
+	resourceID, err := strconv.ParseInt(resObj.ID.String(), 10, 64)
+	if err != nil {
+		app.Log("Failed to convert resource ID to int64:", err)
+		s.errMessage = "Failed to create resource"
+		return
+	}
+	ctx.SessionStorage().Get("resource", &s.resource)
+	s.resource.Id = resourceID
+	ctx.SessionStorage().Set("resource", &s.resource)
+	ctx.SessionStorage().Del("resource-id")
+	ctx.Navigate(fmt.Sprintf("/dashboard/project/res?sid=%d&stitle=%s", s.section.Id, url.QueryEscape(s.section.Title)))
 }

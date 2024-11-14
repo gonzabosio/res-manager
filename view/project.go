@@ -31,11 +31,10 @@ type Project struct {
 }
 
 func (p *Project) OnMount(ctx app.Context) {
-	atCookie := app.Window().Call("getAccessTokenCookie")
-	if atCookie.IsUndefined() {
+	if err := ctx.LocalStorage().Get("access-token", &p.accessToken); err != nil {
+		app.Log(err)
 		ctx.Navigate("/")
-	} else {
-		p.accessToken = atCookie.String()
+		return
 	}
 	if err := ctx.SessionStorage().Get("project", &p.project); err != nil {
 		app.Log("Could not get the project from session storage", err)
@@ -135,6 +134,9 @@ func (p *Project) modifyProject(ctx app.Context, e app.Event) {
 		p.projectNameField = ""
 		p.projectDetailsField = ""
 		p.modProjectForm = false
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
+		ctx.Navigate("/")
 	} else {
 		var body errResponseBody
 		if err = json.Unmarshal(b, &body); err != nil {
@@ -148,7 +150,7 @@ func (p *Project) modifyProject(ctx app.Context, e app.Event) {
 }
 
 func (p *Project) deleteProject(ctx app.Context, e app.Event) {
-	app.Log("Delete:", p.project.Name)
+	// app.Log("Delete:", p.project.Name)
 	client := http.Client{}
 	req, err := http.NewRequest(
 		http.MethodDelete, fmt.Sprintf("%v/project/%v", app.Getenv("BACK_URL"), p.project.Id), nil,
@@ -167,6 +169,9 @@ func (p *Project) deleteProject(ctx app.Context, e app.Event) {
 	}
 	if res.StatusCode == http.StatusOK {
 		ctx.Navigate("dashboard")
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
+		ctx.Navigate("/")
 	} else {
 		app.Log(err)
 		p.errMessage = "Failed to delete project"
@@ -191,7 +196,7 @@ func (p *Project) addNewSection(ctx app.Context, e app.Event) {
 		p.errMessage = "The field is empty"
 		return
 	}
-	app.Log(fmt.Sprintf("Title: %v\nProjectID: %v", p.sectionTitleField, p.project.Id))
+	// app.Log(fmt.Sprintf("Title: %v\nProjectID: %v", p.sectionTitleField, p.project.Id))
 	req, err := http.NewRequest(http.MethodPost, app.Getenv("BACK_URL")+"/section", strings.NewReader(fmt.Sprintf(
 		`{"title":"%v","project_id":%d}`,
 		p.sectionTitleField, p.project.Id)),
@@ -214,6 +219,9 @@ func (p *Project) addNewSection(ctx app.Context, e app.Event) {
 		p.sectionTitleField = ""
 		p.errMessage = ""
 		p.showAddSectionForm = false
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
+		ctx.Navigate("/")
 	} else {
 		p.errMessage = "Could not add the section"
 	}

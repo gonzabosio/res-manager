@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -46,9 +47,9 @@ func (h *Handler) UploadImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	uploader := s3manager.NewUploader(h.S3.Session)
-
+	bucketName := os.Getenv("BUCKET_NAME")
 	res, err := uploader.Upload(&s3manager.UploadInput{
-		Bucket: aws.String(h.S3.Bucket),
+		Bucket: aws.String(bucketName),
 		Key:    aws.String(filename),
 		Body:   file,
 		ACL:    aws.String("public-read"),
@@ -131,7 +132,9 @@ func (h *Handler) DeleteImage(w http.ResponseWriter, r *http.Request) {
 	}
 	obj := reqBody.ImageName
 	svc := s3.New(h.S3.Session)
-	_, err = svc.DeleteObject(&s3.DeleteObjectInput{Bucket: aws.String(h.S3.Bucket), Key: aws.String(obj)})
+	_, err = svc.DeleteObject(&s3.DeleteObjectInput{
+		Bucket: aws.String(os.Getenv("BUCKET_NAME")),
+		Key:    aws.String(obj)})
 	if err != nil {
 		WriteJSON(w, map[string]string{
 			"message": "Failed to delete object in S3",
@@ -141,7 +144,7 @@ func (h *Handler) DeleteImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err = svc.WaitUntilObjectNotExists(&s3.HeadObjectInput{
-		Bucket: aws.String(h.S3.Bucket),
+		Bucket: aws.String(os.Getenv("BUCKET_NAME")),
 		Key:    aws.String(obj),
 	})
 	if err != nil {

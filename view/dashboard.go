@@ -34,11 +34,10 @@ type Dashboard struct {
 func (d *Dashboard) OnMount(ctx app.Context) {
 	ctx.Async(func() {
 		defer ctx.Update()
-		atCookie := app.Window().Call("getAccessTokenCookie")
-		if atCookie.IsUndefined() {
+		if err := ctx.LocalStorage().Get("access-token", &d.accessToken); err != nil {
+			app.Log(err)
 			ctx.Navigate("/")
-		} else {
-			d.accessToken = atCookie.String()
+			return
 		}
 		if err := ctx.SessionStorage().Get("user", &d.user); err != nil {
 			app.Log("Could not get user data from session storage", err)
@@ -108,6 +107,10 @@ type teamResponse struct {
 }
 
 func (d *Dashboard) editTeam(ctx app.Context, e app.Event) {
+	if d.newTeamName == "" && d.newPassword == "" {
+		d.errMessage = "At least one field must be filled"
+		return
+	}
 	if d.newPassword != "" && len(d.newPassword) < 4 {
 		d.errMessage = "Password length must be at least 4 characters"
 		return
@@ -149,6 +152,9 @@ func (d *Dashboard) editTeam(ctx app.Context, e app.Event) {
 		d.newTeamName = ""
 		d.errMessage = ""
 		d.showTeamForm = !d.showTeamForm
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
+		ctx.Navigate("/")
 	} else {
 		var body errResponseBody
 		if err = json.Unmarshal(b, &body); err != nil {
@@ -182,6 +188,9 @@ func (d *Dashboard) deleteTeam(ctx app.Context, e app.Event) {
 		return
 	}
 	if res.StatusCode == http.StatusOK {
+		ctx.Navigate("/")
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
 		ctx.Navigate("/")
 	} else {
 		app.Log(err)

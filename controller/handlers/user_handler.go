@@ -43,14 +43,7 @@ func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 	defer resp.Body.Close()
 
 	log.Printf("RefreshToken: %v - AccessToken: %v\n", token.RefreshToken, token.AccessToken)
-	// log.Printf("ExpiresIn: %v - Expiry: %v\n", token.ExpiresIn, token.Expiry)
-	http.SetCookie(w, &http.Cookie{
-		Name:    "access-token",
-		Value:   token.AccessToken,
-		Path:    "/",
-		Expires: token.Expiry,
-	})
-	refreshURL := fmt.Sprintf(`<html><head><meta http-equiv="refresh" content="0;url=%v/refresh"></head><body></body></html>`, os.Getenv("FRONT_URL"))
+	refreshURL := fmt.Sprintf(`<html><head><meta http-equiv="refresh" content="0;url=%v/refresh?access_token=%v"></head><body></body></html>`, os.Getenv("FRONT_URL"), token.AccessToken)
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, refreshURL)

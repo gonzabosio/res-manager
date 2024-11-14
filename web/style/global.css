@@ -71,3 +71,8 @@ input {
         border-color: rgb(160, 200, 225);
     }
 }
+
+.align-div {
+    display: flex;
+    align-items: center;
+}

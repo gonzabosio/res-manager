@@ -52,21 +52,20 @@ func (h *Home) OnMount(ctx app.Context) {
 	if err := ctx.SessionStorage().Get("user", &h.user); err != nil {
 		app.Log("Could not get user from local storage")
 	}
-	atCookie := app.Window().Call("getAccessTokenCookie")
-	// app.Log("access token", atCookie.String())
-	if atCookie.IsUndefined() {
+	if err := ctx.LocalStorage().Get("access-token", &h.accessToken); err != nil {
+		app.Log(err)
 		h.accessToken = ""
 	} else {
-		h.accessToken = atCookie.String()
+		// get google user data
 		var googleUser model.GoogleUser
-		resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + h.accessToken)
+		res, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + h.accessToken)
 		if err != nil {
 			h.errMessage = ""
 			return
 		}
-		defer resp.Body.Close()
+		defer res.Body.Close()
 
-		userData, err := io.ReadAll(resp.Body)
+		userData, err := io.ReadAll(res.Body)
 		if err != nil {
 			h.errMessage = "Response JSON Parsing Failed"
 			return
@@ -87,7 +86,7 @@ func (h *Home) OnMount(ctx app.Context) {
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", h.accessToken))
 		req.Header.Add("Content-Type", "application/json")
 		client := http.Client{}
-		res, err := client.Do(req)
+		res, err = client.Do(req)
 		if err != nil {
 			app.Log(err)
 			h.errMessage = "Failed registering user"
@@ -107,6 +106,12 @@ func (h *Home) OnMount(ctx app.Context) {
 			}
 			h.user = body.User
 			ctx.SessionStorage().Set("user", h.user)
+		} else if res.StatusCode == http.StatusUnauthorized {
+			ctx.Dispatch(func(ctx app.Context) {
+				ctx.LocalStorage().Del("access-token")
+				h.accessToken = ""
+				app.Log("user not logged in")
+			})
 		} else {
 			var body errResponseBody
 			if err = json.Unmarshal(b, &body); err != nil {
@@ -152,7 +157,9 @@ func (h *Home) Render() app.UI {
 							}),
 							app.Button().Text("Delete user").Class("global-btn").OnClick(h.deleteUser),
 							app.Button().Text("Sign Out").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
-								app.Window().Call("deleteAccessTokenCookie")
+								ctx.LocalStorage().Del("access-token")
+								ctx.LocalStorage().Del("teamID")
+								ctx.LocalStorage().Del("teamName")
 								ctx.SessionStorage().Del("user")
 								ctx.Reload()
 							}),
@@ -232,9 +239,14 @@ func (h *Home) deleteUser(ctx app.Context, e app.Event) {
 			return
 		}
 		if res.StatusCode == http.StatusOK {
-			app.Window().Call("deleteAccessTokenCookie")
+			ctx.LocalStorage().Del("access-token")
+			ctx.LocalStorage().Del("teamID")
+			ctx.LocalStorage().Del("teamName")
 			h.accessToken = ""
 			ctx.Dispatch(func(ctx app.Context) {})
+		} else if res.StatusCode == http.StatusUnauthorized {
+			ctx.LocalStorage().Del("access-token")
+			ctx.Navigate("/")
 		} else {
 			var respBody errResponseBody
 			err := json.Unmarshal(b, &respBody)
@@ -283,6 +295,9 @@ func (h *Home) modifyUser(ctx app.Context, e app.Event) {
 		ctx.SessionStorage().Set("user", h.user)
 		h.showUpdateUserForm = false
 		// app.Log(h.showUpdateUserForm)
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
+		ctx.Navigate("/")
 	} else {
 		var body errResponseBody
 		if err = json.Unmarshal(b, &body); err != nil {
@@ -335,6 +350,9 @@ func (h *Home) loadTeamsList(ctx app.Context) {
 		}
 		// app.Log("Page number List:", h.pageNumberList)
 		ctx.Dispatch(func(ctx app.Context) {})
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
+		ctx.Navigate("/")
 	} else {
 		var errResBody errResponseBody
 		if err = json.NewDecoder(res.Body).Decode(&errResBody); err != nil {

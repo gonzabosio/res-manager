@@ -77,7 +77,8 @@ func (h *Handler) UploadCSV(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	WriteJSON(w, map[string]interface{}{
-		"message":  "Resources created successfully by csv file",
-		"resource": newResource,
+		"message":     "Resources created successfully by csv file",
+		"resource":    newResource,
+		"resource_id": strconv.Itoa(int(newResource.Id)),
 	}, http.StatusOK)
 }

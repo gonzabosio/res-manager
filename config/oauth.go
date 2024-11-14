@@ -12,7 +12,7 @@ import (
 func GoogleConfig() *oauth2.Config {
 	err := godotenv.Load(".env")
 	if err != nil {
-		log.Fatalf("Some error occured. Err: %s", err)
+		log.Printf("Some error occured. Err: %s\n", err)
 	}
 	// log.Println("Enviroment variables:", os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"), os.Getenv("REDIRECT_URI"))
 	return &oauth2.Config{

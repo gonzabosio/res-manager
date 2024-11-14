@@ -41,5 +41,10 @@
     border-radius: 0.5em;
     padding: 1em;
     margin-bottom: 2em;
-    border: 8px dashed rgba(100, 148, 237, 0.5);
+    border: 6px dashed rgba(100, 150, 235, 0.5);
+    transition: 0.3s;
+
+    &:hover {
+        background-color: rgba(100, 150, 235, 0.2);
+    }
 }

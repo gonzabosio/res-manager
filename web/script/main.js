@@ -1,15 +1,5 @@
-function getAccessTokenCookie() {
-    let value = `; ${document.cookie}`
-    let parts = value.split(`; access-token=`)
-    if (parts.length === 2) return parts.pop().split(';').shift()
-}
-
-function deleteAccessTokenCookie() {
-    document.cookie = 'access-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-}
-
 async function uploadCSV(url, token, lastEditionBy, sectionId) {
-    console.log('lasteditionby: ' + lastEditionBy, 'sectionid: ' + sectionId)
+    // console.log('lasteditionby: ' + lastEditionBy, 'sectionid: ' + sectionId)
     const fileInput = document.getElementById("fileInput")
     if (fileInput.files.length === 0) {
         console.log('No file selected.')
@@ -29,12 +19,12 @@ async function uploadCSV(url, token, lastEditionBy, sectionId) {
             })
             let body = await response.json()
             if (response.ok) {
-                console.log('Resource ' + body)
-                sessionStorage.setItem('resource', body)
+                sessionStorage.setItem('resource', JSON.stringify(body.resource))
+                sessionStorage.setItem('resource-id', body.resource_id.toString())
+                console.log('File uploaded successfully!')
             } else {
                 console.error("File upload failed:", response.status, response.statusText, body)
             }
-            console.log('File uploaded successfully!')
         } catch (error) {
             console.error("Error uploading file:", error)
         }

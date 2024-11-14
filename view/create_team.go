@@ -32,12 +32,9 @@ func (c *CreateTeam) OnMount(ctx app.Context) {
 	if err := ctx.SessionStorage().Get("user", &c.user); err != nil {
 		app.Log("Could not get user from local storage")
 	}
-	atCookie := app.Window().Call("getAccessTokenCookie")
-	// app.Log("access token", atCookie.String())
-	if atCookie.IsUndefined() {
+	if err := ctx.LocalStorage().Get("access-token", &c.accessToken); err != nil {
+		app.Log(err)
 		ctx.Navigate("/")
-	} else {
-		c.accessToken = atCookie.String()
 	}
 }
 
@@ -138,6 +135,9 @@ func (c *CreateTeam) createAction(ctx app.Context, e app.Event) {
 						// app.Log("Participant retrieved", body.Participant)
 						ctx.SessionStorage().Set("admin", true)
 						ctx.Navigate("dashboard")
+					} else if res.StatusCode == http.StatusUnauthorized {
+						ctx.LocalStorage().Del("access-token")
+						ctx.Navigate("/")
 					} else {
 						var body errResponseBody
 						if err = json.Unmarshal(b, &body); err != nil {
@@ -149,6 +149,9 @@ func (c *CreateTeam) createAction(ctx app.Context, e app.Event) {
 						c.errMessage = body.Message
 					}
 				})
+			} else if res.StatusCode == http.StatusUnauthorized {
+				ctx.LocalStorage().Del("access-token")
+				ctx.Navigate("/")
 			} else {
 				var resBody errResponseBody
 				if err := json.Unmarshal(b, &resBody); err != nil {

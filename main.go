@@ -38,13 +38,23 @@ func main() {
 			"/web/script/main.js",
 		},
 	})
-	go func() {
+	runBackend := os.Getenv("RUN_BACK")
+	if runBackend == "1" {
 		if err := controller.InitBackend(); err != nil {
 			log.Fatalf("backend server connection failed: %v", err)
 		}
-	}()
-
-	if err := http.ListenAndServe(os.Getenv("FRONT_PORT"), nil); err != nil {
-		log.Fatalf("wasm server down: %v", err)
+	} else if runBackend == "0" {
+		if err := http.ListenAndServe(os.Getenv("FRONT_PORT"), nil); err != nil {
+			log.Fatalf("wasm server down: %v", err)
+		}
+	} else {
+		go func() {
+			if err := controller.InitBackend(); err != nil {
+				log.Fatalf("backend server connection failed: %v", err)
+			}
+		}()
+		if err := http.ListenAndServe(os.Getenv("FRONT_PORT"), nil); err != nil {
+			log.Fatalf("wasm server down: %v", err)
+		}
 	}
 }

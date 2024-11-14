@@ -39,11 +39,10 @@ func (r *Resource) OnMount(ctx app.Context) {
 	if err := ctx.SessionStorage().Get("user", &r.user); err != nil {
 		app.Log("Could not get user data from session storage")
 	}
-	atCookie := app.Window().Call("getAccessTokenCookie")
-	if atCookie.IsUndefined() {
+	if err := ctx.LocalStorage().Get("access-token", &r.accessToken); err != nil {
+		app.Log(err)
 		ctx.Navigate("/")
-	} else {
-		r.accessToken = atCookie.String()
+		return
 	}
 	if err := ctx.SessionStorage().Get("project", &r.project); err != nil {
 		app.Log(fmt.Sprintf("Could not get resource data: %v", err))
@@ -93,7 +92,7 @@ func (r *Resource) Render() app.UI {
 						app.Div().ID("below-img").Body(
 							app.P().Text(imgName),
 							app.Button().Text("Delete").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
-								r.deleteImage(imgName)
+								r.deleteImage(ctx, imgName)
 							}),
 						),
 					)
@@ -138,6 +137,9 @@ func (r *Resource) deleteResource(ctx app.Context, e app.Event) {
 	}
 	if res.StatusCode == http.StatusOK {
 		ctx.Navigate("dashboard/project")
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
+		ctx.Navigate("/")
 	} else {
 		app.Log(err)
 		r.errMessage = "Failed to delete resource"
@@ -207,6 +209,9 @@ func (r *Resource) editResource(ctx app.Context, e app.Event) {
 		}
 		r.editMode = false
 
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
+		ctx.Navigate("/")
 	} else {
 		var body errResponseBody
 		if err = json.Unmarshal(b, &body); err != nil {
@@ -248,6 +253,9 @@ func (r *Resource) getImages(ctx app.Context) {
 			r.imagesList = resBody.Images
 			// app.Log(r.imagesList)
 			ctx.Dispatch(func(ctx app.Context) {})
+		} else if res.StatusCode == http.StatusUnauthorized {
+			ctx.LocalStorage().Del("access-token")
+			ctx.Navigate("/")
 		} else {
 			var errResBody errResponseBody
 			json.NewDecoder(res.Body).Decode(&errResBody)
@@ -257,7 +265,7 @@ func (r *Resource) getImages(ctx app.Context) {
 	})
 }
 
-func (r *Resource) deleteImage(imgName string) {
+func (r *Resource) deleteImage(ctx app.Context, imgName string) {
 	req, err := http.NewRequest(
 		http.MethodDelete, fmt.Sprintf("%v/image", app.Getenv("BACK_URL")),
 		strings.NewReader(fmt.Sprintf(`{"image":"%v", "resource_id": %d}`, imgName, r.resource.Id)),
@@ -278,6 +286,9 @@ func (r *Resource) deleteImage(imgName string) {
 	}
 	if res.StatusCode == http.StatusOK {
 		r.infoMessage = "Image deleted successfully"
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
+		ctx.Navigate("/")
 	} else {
 		var errResBody errResponseBody
 		err := json.NewDecoder(res.Body).Decode(&errResBody)

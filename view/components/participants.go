@@ -35,12 +35,9 @@ func (p *ParticipantsList) OnMount(ctx app.Context) {
 	if err := ctx.SessionStorage().Get("admin", &p.admin); err != nil {
 		app.Log("Could not get the admin data from session storage")
 	}
-	atCookie := app.Window().Call("getAccessTokenCookie")
-	// app.Log("access token", atCookie.String())
-	if atCookie.IsUndefined() {
-		ctx.Navigate("dashboard")
-	} else {
-		p.accessToken = atCookie.String()
+	if err := ctx.LocalStorage().Get("access-token", &p.accessToken); err != nil {
+		app.Log(err)
+		ctx.Navigate("/")
 	}
 	var teamIDstr string
 	if err := ctx.LocalStorage().Get("teamID", &teamIDstr); err != nil {
@@ -77,19 +74,28 @@ func (p *ParticipantsList) OnMount(ctx app.Context) {
 		app.Log(err)
 		return
 	}
-	var pResp participantsResponse
-	err = json.Unmarshal(b, &pResp)
-	if err != nil {
-		p.errMessage = "Could not unmarshal participant data"
-		app.Log(err)
-		return
-	}
 	if res.StatusCode == http.StatusOK {
+		var pResp participantsResponse
+		err = json.Unmarshal(b, &pResp)
+		if err != nil {
+			p.errMessage = "Could not unmarshal participant data"
+			app.Log(err)
+			return
+		}
 		// app.Log(pResp.Message)
 		// app.Log(pResp.Participants)
 		p.participants = pResp.Participants
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
+		ctx.Navigate("/")
 	} else {
-
+		var errResBody errResponseBody
+		err := json.Unmarshal(b, &errResBody)
+		if err != nil {
+			p.errMessage = "Could not unmarshal error by trying to get participants"
+			app.Log(err)
+			return
+		}
 	}
 }
 
@@ -97,13 +103,15 @@ func (p *ParticipantsList) Render() app.UI {
 	return app.Div().Body(
 		app.P().Text(p.errMessage).Class("err-message"),
 		app.Button().Text("Exit").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
-			p.exitTeam(ctx, e, p.pId)
+			p.exitTeam(ctx, p.pId)
+			ctx.LocalStorage().Del("teamID")
+			ctx.LocalStorage().Del("teamName")
 		}),
 		app.Range(p.participants).Slice(func(i int) app.UI {
 			if p.participants[i].UserId == p.user.Id {
 				p.pId = p.participants[i].Id
 			}
-			return app.Div().Body(
+			return app.Div().Class("align-div").Body(
 				app.If(!p.participants[i].Admin, func() app.UI {
 					return app.P().Text(p.participants[i].Username)
 				}).Else(func() app.UI {
@@ -114,11 +122,11 @@ func (p *ParticipantsList) Render() app.UI {
 				app.If(p.participants[i].UserId != p.user.Id && p.admin, func() app.UI {
 					return app.Div().Body(
 						app.Button().Text("Delete").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
-							p.deleteParticipant(ctx, e, p.participants[i].Id)
+							p.deleteParticipant(ctx, p.participants[i].Id)
 						}),
 						app.If(!p.participants[i].Admin, func() app.UI {
 							return app.Button().Text("Give Admin").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
-								p.giveAdmin(ctx, e, p.participants[i].Id)
+								p.giveAdmin(ctx, p.participants[i].Id)
 							})
 						}),
 					)
@@ -128,7 +136,7 @@ func (p *ParticipantsList) Render() app.UI {
 	)
 }
 
-func (p *ParticipantsList) deleteParticipant(ctx app.Context, e app.Event, pId int64) {
+func (p *ParticipantsList) deleteParticipant(ctx app.Context, pId int64) {
 	url := fmt.Sprintf("%v/participant/%v/%v", app.Getenv("BACK_URL"), p.teamId, pId)
 	app.Log(url)
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
@@ -153,6 +161,9 @@ func (p *ParticipantsList) deleteParticipant(ctx app.Context, e app.Event, pId i
 	}
 	if res.StatusCode == http.StatusOK {
 		p.errMessage = "Member deleted"
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
+		ctx.Navigate("/")
 	} else {
 		var errResBody errResponseBody
 		if err := json.Unmarshal(b, &errResBody); err != nil {
@@ -165,7 +176,7 @@ func (p *ParticipantsList) deleteParticipant(ctx app.Context, e app.Event, pId i
 	}
 }
 
-func (p *ParticipantsList) giveAdmin(ctx app.Context, e app.Event, pId int64) {
+func (p *ParticipantsList) giveAdmin(ctx app.Context, pId int64) {
 	req, err := http.NewRequest(http.MethodPatch, fmt.Sprintf("%v/participant/%v", app.Getenv("BACK_URL"), pId), nil)
 	if err != nil {
 		app.Log(err)
@@ -183,13 +194,16 @@ func (p *ParticipantsList) giveAdmin(ctx app.Context, e app.Event, pId int64) {
 	}
 	if res.StatusCode == http.StatusOK {
 		p.errMessage = "Admin role has given to the member"
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
+		ctx.Navigate("/")
 	} else {
 		app.Log(err)
 		p.errMessage = "Could not give admin to the member"
 	}
 }
 
-func (p *ParticipantsList) exitTeam(ctx app.Context, e app.Event, pId int64) {
+func (p *ParticipantsList) exitTeam(ctx app.Context, pId int64) {
 	url := fmt.Sprintf("%v/participant/%v/%v", app.Getenv("BACK_URL"), p.teamId, pId)
 	app.Log(url)
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
@@ -213,6 +227,9 @@ func (p *ParticipantsList) exitTeam(ctx app.Context, e app.Event, pId int64) {
 		return
 	}
 	if res.StatusCode == http.StatusOK {
+		ctx.Navigate("/")
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
 		ctx.Navigate("/")
 	} else {
 		var errResBody errResponseBody

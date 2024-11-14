@@ -69,7 +69,7 @@ func (h *Handler) VerifyTeamByName(w http.ResponseWriter, r *http.Request) {
 	err := h.Service.ReadTeamByName(team)
 	if err != nil {
 		WriteJSON(w, map[string]interface{}{
-			"message": "Could not verify the team",
+			"message": "Invalid team data",
 			"error":   err.Error(),
 		}, http.StatusBadRequest)
 		return
@@ -149,6 +149,16 @@ func (h *Handler) ModifyTeam(w http.ResponseWriter, r *http.Request) {
 			"error":   errors.Error(),
 		}, http.StatusBadRequest)
 		return
+	}
+	if team.Password != "" {
+		team.Password, err = hashPassword([]byte(team.Password))
+		if err != nil {
+			WriteJSON(w, map[string]interface{}{
+				"message": "Could not hash team password",
+				"error":   err.Error(),
+			}, http.StatusBadRequest)
+			return
+		}
 	}
 	err = h.Service.UpdateTeam(team)
 	if err != nil {

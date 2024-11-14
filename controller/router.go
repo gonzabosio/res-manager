@@ -24,12 +24,15 @@ func Routing() *chi.Mux {
 	r.Use(httprate.LimitByIP(100, 1*time.Minute))
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{os.Getenv("FRONT_URL")},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowedMethods:   []string{"HEAD", "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowCredentials: true,
 		AllowedHeaders:   []string{"Authorization", "Content-Type"},
 	}))
+	r.Head("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Resources Manager"))
+		w.Write([]byte("Resur"))
 	})
 	r.Get("/teams", h.GetTeams)
 
