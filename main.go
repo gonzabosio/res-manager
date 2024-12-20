@@ -40,7 +40,8 @@ func main() {
 	})
 	runBackend := os.Getenv("RUN_BACK")
 	if runBackend == "1" {
-		if err := controller.InitBackend(); err != nil {
+		r := controller.Routing()
+		if err := http.ListenAndServe(os.Getenv("BACK_PORT"), r); err != nil {
 			log.Fatalf("backend server connection failed: %v", err)
 		}
 	} else if runBackend == "0" {
@@ -49,7 +50,8 @@ func main() {
 		}
 	} else {
 		go func() {
-			if err := controller.InitBackend(); err != nil {
+			r := controller.Routing()
+			if err := http.ListenAndServe(os.Getenv("BACK_PORT"), r); err != nil {
 				log.Fatalf("backend server connection failed: %v", err)
 			}
 		}()

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -42,7 +41,7 @@ func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	defer resp.Body.Close()
 
-	log.Printf("RefreshToken: %v - AccessToken: %v\n", token.RefreshToken, token.AccessToken)
+	// log.Printf("RefreshToken: %v - AccessToken: %v\n", token.RefreshToken, token.AccessToken)
 	refreshURL := fmt.Sprintf(`<html><head><meta http-equiv="refresh" content="0;url=%v/refresh?access_token=%v"></head><body></body></html>`, os.Getenv("FRONT_URL"), token.AccessToken)
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)

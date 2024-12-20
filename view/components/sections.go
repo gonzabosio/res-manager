@@ -1,6 +1,7 @@
 package components
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -62,6 +63,11 @@ type resourceResponse struct {
 	Resource model.Resource `json:"resource"`
 }
 
+type LockResourceResponse struct {
+	Message    string `json:"message"`
+	LockStatus bool   `json:"lock_status"`
+}
+
 func (s *Sections) OnMount(ctx app.Context) {
 	if err := ctx.SessionStorage().Get("user", &s.user); err != nil {
 		app.Log("Could not get user from local storage")
@@ -120,14 +126,28 @@ func (s *Sections) Render() app.UI {
 				app.Button().Text("Create resource").Class("global-btn").OnClick(s.toggleShowResourceForm),
 				app.Button().Text("Back to sections").Class("global-btn").OnClick(s.toggleResourcesListView),
 				app.Range(s.resourcesList).Slice(func(i int) app.UI {
-					return app.Div().Body(
-						app.A().Text(s.resourcesList[i].Title).Href(
-							fmt.Sprintf("/dashboard/project/res?sid=%d&stitle=%s", s.section.Id, url.QueryEscape(s.section.Title))).
+					it := s.resourcesList[i]
+					return app.If(it.LockStatus && s.user.Id != it.LockedBy, func() app.UI {
+						// locked
+						return app.P().Text(fmt.Sprintf("-%s- edition locked by: %d 🔒", s.resourcesList[i].Title, s.resourcesList[i].LockedBy)).
+							Class("small-card", "resource-card")
+					}).ElseIf(s.user.Id == s.resourcesList[i].LockedBy, func() app.UI {
+						// locked by the current user
+						return app.A().Text(fmt.Sprintf("-%s- edition locked by you", s.resourcesList[i].Title)).Href(fmt.Sprintf("/dashboard/project/res?sid=%d&stitle=%s", s.section.Id, url.QueryEscape(s.section.Title))).
 							Class("small-card", "resource-card").
 							OnClick(func(ctx app.Context, e app.Event) {
+								s.lockResource(ctx, s.user.Id, s.resourcesList[i].Id)
 								ctx.SessionStorage().Set("resource", s.resourcesList[i])
-							}),
-					)
+							})
+					}).Else(func() app.UI {
+						// unlocked
+						return app.A().Text(s.resourcesList[i].Title).Href(fmt.Sprintf("/dashboard/project/res?sid=%d&stitle=%s", s.section.Id, url.QueryEscape(s.section.Title))).
+							Class("small-card", "resource-card").
+							OnClick(func(ctx app.Context, e app.Event) {
+								s.lockResource(ctx, s.user.Id, s.resourcesList[i].Id)
+								ctx.SessionStorage().Set("resource", s.resourcesList[i])
+							})
+					})
 				}),
 			)
 		}).ElseIf(s.showResourcesForm, func() app.UI {
@@ -216,10 +236,9 @@ func (s *Sections) loadResources(ctx app.Context) {
 }
 
 func (s *Sections) addResource(ctx app.Context, e app.Event) {
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%v/resource", app.Getenv("BACK_URL")), strings.NewReader(fmt.Sprintf(
-		`{"title":"%v","last_edition_by":"%v","section_id":%d}`,
-		s.resource.Title, s.user.Username, s.section.Id,
-	)))
+	reqUrl := fmt.Sprintf("%v/resource/%v", app.Getenv("BACK_URL"), s.user.Id)
+	reqBody := fmt.Sprintf(`{"title":"%v","last_edition_by":"%v","section_id":%d}`, s.resource.Title, s.user.Username, s.section.Id)
+	req, err := http.NewRequest(http.MethodPost, reqUrl, strings.NewReader(reqBody))
 	if err != nil {
 		app.Log(err)
 		s.errMessage = "Could not add resource"
@@ -253,7 +272,6 @@ func (s *Sections) addResource(ctx app.Context, e app.Event) {
 		s.resource.Id = resBody.Resource.Id
 		ctx.SessionStorage().Set("resource", s.resource)
 		ctx.Navigate(fmt.Sprintf("/dashboard/project/res?sid=%d&stitle=%s", s.section.Id, url.QueryEscape(s.section.Title)))
-		// ctx.Navigate("/dashboard/project/res")
 	} else if res.StatusCode == http.StatusUnauthorized {
 		ctx.LocalStorage().Del("access-token")
 		ctx.Navigate("/")
@@ -385,9 +403,10 @@ func (s *Sections) loadResourceDataFromCSV(ctx app.Context, e app.Event) {
 	}
 	e.PreventDefault()
 	sectionIdStr := strconv.Itoa(int(s.section.Id))
-	app.Window().Call("uploadCSV", app.Getenv("BACK_URL"), s.accessToken, s.user.Username, sectionIdStr)
+	userIdStr := strconv.Itoa(int(s.user.Id))
+	app.Window().Call("uploadCSV", app.Getenv("BACK_URL"), s.accessToken, s.user.Username, sectionIdStr, userIdStr)
 	var resObj resourceObj
-	time.Sleep(time.Second)
+	time.Sleep(3 * time.Second)
 	if err := ctx.SessionStorage().Get("resource-id", &resObj.ID); err != nil {
 		app.Log(err)
 		s.errMessage = "Failed to create resource"
@@ -404,4 +423,55 @@ func (s *Sections) loadResourceDataFromCSV(ctx app.Context, e app.Event) {
 	ctx.SessionStorage().Set("resource", &s.resource)
 	ctx.SessionStorage().Del("resource-id")
 	ctx.Navigate(fmt.Sprintf("/dashboard/project/res?sid=%d&stitle=%s", s.section.Id, url.QueryEscape(s.section.Title)))
+}
+
+func (s *Sections) lockResource(ctx app.Context, userId, resourceId int64) {
+	req, err := http.NewRequest(http.MethodPatch, fmt.Sprintf("%s/resource/lock", app.Getenv("BACK_URL")), bytes.NewReader([]byte(fmt.Sprintf(`
+		{
+			"user_id": %d,
+			"resource_id": %d
+		}`, userId, resourceId,
+	))))
+	if err != nil {
+		app.Logf("Failed to create lock-resource request: %v\n", err)
+		s.errMessage = "Failed to lock resource"
+		return
+	}
+
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", s.accessToken))
+	req.Header.Add("Content-Type", "application/json")
+	client := http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		app.Log(err)
+		s.errMessage = "Failed to lock resource"
+		return
+	}
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		s.errMessage = "Failed to read lock resource process"
+		return
+	}
+	if res.StatusCode == http.StatusOK {
+		var body LockResourceResponse
+		if err = json.Unmarshal(b, &body); err != nil {
+			app.Log(err)
+			s.errMessage = "Failed to parse lock resource response"
+			return
+		}
+		app.Logf("%s - lock status: %t", body.Message, body.LockStatus)
+		s.errMessage = ""
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
+		ctx.Navigate("/")
+	} else {
+		var body errResponseBody
+		if err = json.Unmarshal(b, &body); err != nil {
+			app.Log(err)
+			s.errMessage = "Could not parse the section modifications"
+			return
+		}
+		app.Log(body.Err)
+		s.errMessage = body.Message
+	}
 }

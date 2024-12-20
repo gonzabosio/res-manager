@@ -1,5 +1,6 @@
 ## Resur 📝
-Schemas, designs, dependencies, infrastructure, architecture, patterns or whatever your project requires, all documented and linked in one place with team members collaboration.
-Frontend built with go-app package (Web Assembly)
+Everything a team's project requires can be documented and linked in resources and in a collaborative manner.\
+Frontend built with [go-app](https://github.com/maxence-charriere/go-app) package
 - Images Storage with AWS S3
 - Google OAuth
+- CSV Reader

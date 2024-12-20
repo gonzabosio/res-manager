@@ -1,5 +1,4 @@
-async function uploadCSV(url, token, lastEditionBy, sectionId) {
-    // console.log('lasteditionby: ' + lastEditionBy, 'sectionid: ' + sectionId)
+async function uploadCSV(url, token, lastEditionBy, sectionId, userId) {
     const fileInput = document.getElementById("fileInput")
     if (fileInput.files.length === 0) {
         console.log('No file selected.')
@@ -9,6 +8,7 @@ async function uploadCSV(url, token, lastEditionBy, sectionId) {
 
         formData.append("lastEditionBy", lastEditionBy);
         formData.append("sectionId", sectionId);
+        formData.append("userId", userId)
         try {
             const response = await fetch(url + '/csv', {
                 method: 'POST',
@@ -21,7 +21,7 @@ async function uploadCSV(url, token, lastEditionBy, sectionId) {
             if (response.ok) {
                 sessionStorage.setItem('resource', JSON.stringify(body.resource))
                 sessionStorage.setItem('resource-id', body.resource_id.toString())
-                console.log('File uploaded successfully!')
+                console.log('CSV uploaded')
             } else {
                 console.error("File upload failed:", response.status, response.statusText, body)
             }

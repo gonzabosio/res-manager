@@ -3,7 +3,6 @@ package repository
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"path"
 	"time"
 
@@ -19,15 +18,17 @@ type ResourceRepository interface {
 	SaveImageURL(string, int64) error
 	GetImagesByResourceID(int64) ([]string, error)
 	DeleteImageByResourceID(string, int64) error
+	CheckAndLockResource(userId, resourceId int64) (bool, error)
+	UnlockResource(resourceId int64) error
 }
 
 var _ ResourceRepository = (*DBService)(nil)
 
 func (s *DBService) CreateResource(res *model.Resource) error {
-	query := "INSERT INTO resource (title, content, url, images, last_edition_at, last_edition_by, section_id) VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id"
+	query := "INSERT INTO resource (title, content, url, images, last_edition_at, last_edition_by, section_id, locked_by, lock_status) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id"
 	now := time.Now()
 	res.LastEditionAt = now
-	if err := s.DB.QueryRow(query, res.Title, res.Content, res.URL, pq.Array(res.Images), time.Now(), res.LastEditionBy, res.SectionId).Scan(&res.Id); err != nil {
+	if err := s.DB.QueryRow(query, res.Title, res.Content, res.URL, pq.Array(res.Images), time.Now(), res.LastEditionBy, res.SectionId, res.LockedBy, true).Scan(&res.Id); err != nil {
 		return err
 	}
 	return nil
@@ -42,7 +43,7 @@ func (s *DBService) ReadResourcesBySectionID(sectionId int64) (*[]model.Resource
 	}
 	for rows.Next() {
 		var r model.Resource
-		if err := rows.Scan(&r.Id, &r.Title, &r.Content, &r.URL, pq.Array(&r.Images), &r.LastEditionAt, &r.LastEditionBy, &r.SectionId); err != nil {
+		if err := rows.Scan(&r.Id, &r.Title, &r.Content, &r.URL, pq.Array(&r.Images), &r.LastEditionAt, &r.LastEditionBy, &r.SectionId, &r.LockedBy, &r.LockStatus); err != nil {
 			return nil, fmt.Errorf("failed reading rows: %v", err)
 		}
 		resources = append(resources, r)
@@ -72,7 +73,7 @@ func (s *DBService) SaveImageURL(imgUrl string, resourceId int64) error {
 		return err
 	}
 	*imgs = append(*imgs, imgUrl)
-	log.Printf("Images Slice: %v\nResource ID: %v", *imgs, resourceId)
+	// log.Printf("Images Slice: %v\nResource ID: %v", *imgs, resourceId)
 	_, err = s.DB.Exec("UPDATE resource SET images=$1 WHERE id=$2", pq.Array(*imgs), resourceId)
 	if err != nil {
 		return err
@@ -108,6 +109,50 @@ func (s *DBService) DeleteImageByResourceID(imgName string, resourceId int64) er
 	_, err = s.DB.Exec("UPDATE resource SET images=$1 WHERE id=$2", pq.Array(newImagesList), resourceId)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func (s *DBService) CheckAndLockResource(userId, resourceId int64) (bool, error) {
+	tx, err := s.DB.Begin()
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+
+	var lockedBy *int64
+	var lockStatus bool
+	err = tx.QueryRow("SELECT locked_by, lock_status FROM resource WHERE id = $1 FOR UPDATE", resourceId).
+		Scan(&lockedBy, &lockStatus)
+	if err != nil {
+		return false, err
+	}
+
+	if lockStatus && (lockedBy == nil || *lockedBy != userId) {
+		return false, nil
+	}
+
+	_, err = tx.Exec(
+		"UPDATE resource SET locked_by = $1, lock_status = TRUE WHERE id = $2",
+		userId, resourceId,
+	)
+	if err != nil {
+		return false, err
+	}
+
+	return tx.Commit() == nil, nil
+}
+
+func (s *DBService) UnlockResource(resourceId int64) error {
+	result, err := s.DB.Exec(
+		"UPDATE resource SET locked_by = 0, lock_status = FALSE WHERE id = $1",
+		resourceId,
+	)
+	if err != nil {
+		return err
+	}
+	if rows, _ := result.RowsAffected(); rows == 0 {
+		return fmt.Errorf("resource is not locked by this user")
 	}
 	return nil
 }

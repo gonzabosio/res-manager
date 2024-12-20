@@ -1,0 +1,38 @@
+services:
+  resurback:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gonzalobosio/resurback:v1
+    ports:
+      - "3060:3060"
+    environment:
+      - CONN_STR=${CONN_STR}
+      - FRONT_PORT=${FRONT_PORT}
+      - BACK_PORT=${BACK_PORT}
+      - FRONT_URL=${FRONT_URL}
+      - BACK_URL=${BACK_URL}
+      - CLIENT_ID=${CLIENT_ID}
+      - CLIENT_SECRET=${CLIENT_SECRET}
+      - REDIRECT_URI=${REDIRECT_URI}
+      - BUCKET_NAME=${BUCKET_NAME}
+      - RUN_BACK=1
+
+  resurfont:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gonzalobosio/resurfront:v1
+    ports:
+      - "3030:3030"
+    environment:
+      - CONN_STR=${CONN_STR}
+      - FRONT_PORT=${FRONT_PORT}
+      - BACK_PORT=${BACK_PORT}
+      - FRONT_URL=${FRONT_URL}
+      - BACK_URL=${BACK_URL}
+      - CLIENT_ID=${CLIENT_ID}
+      - CLIENT_SECRET=${CLIENT_SECRET}
+      - REDIRECT_URI=${REDIRECT_URI}
+      - BUCKET_NAME=${BUCKET_NAME}
+      - RUN_BACK=0

@@ -11,6 +11,8 @@ type Resource struct {
 	LastEditionAt time.Time `json:"last_edition_at"`
 	LastEditionBy string    `json:"last_edition_by" validate:"required"`
 	SectionId     int64     `json:"section_id" validate:"required"`
+	LockedBy      int64     `json:"locked_by"`
+	LockStatus    bool      `json:"lock_status"`
 }
 
 type PatchResource struct {
@@ -27,4 +29,9 @@ type PatchResource struct {
 type DeleteImageReq struct {
 	ImageName  string `json:"image" validate:"required"`
 	ResourceId int64  `json:"resource_id" validate:"required"`
+}
+
+type LockResourceReq struct {
+	UserId     int64 `json:"user_id" validate:"required"`
+	ResourceId int64 `json:"resource_id" validate:"required"`
 }

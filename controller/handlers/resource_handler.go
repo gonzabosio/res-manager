@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -27,7 +28,18 @@ func (h *Handler) CreateResource(w http.ResponseWriter, r *http.Request) {
 		}, http.StatusBadRequest)
 		return
 	}
-	err := h.Service.CreateResource(resource)
+	creatorIdStr := chi.URLParam(r, "user-id")
+	fmt.Println("Creator ID:", creatorIdStr)
+	creatorId, err := strconv.ParseInt(creatorIdStr, 10, 64)
+	if err != nil {
+		WriteJSON(w, map[string]string{
+			"message": "Failed to parse user id",
+			"error":   err.Error(),
+		}, http.StatusInternalServerError)
+		return
+	}
+	resource.LockedBy = creatorId
+	err = h.Service.CreateResource(resource)
 	if err != nil {
 		WriteJSON(w, map[string]interface{}{
 			"message": "Failed resource creation",
@@ -123,5 +135,65 @@ func (h *Handler) DeleteResource(w http.ResponseWriter, r *http.Request) {
 	}
 	WriteJSON(w, map[string]interface{}{
 		"message": "Resource deleted successfully",
+	}, http.StatusOK)
+}
+
+func (h *Handler) LockResource(w http.ResponseWriter, r *http.Request) {
+	reqBody := new(model.LockResourceReq)
+	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+		WriteJSON(w, map[string]string{
+			"message": "Failed to decode request body",
+			"error":   err.Error(),
+		}, http.StatusBadRequest)
+		return
+	}
+	if err := validate.Struct(reqBody); err != nil {
+		errors := err.(validator.ValidationErrors)
+		WriteJSON(w, map[string]string{
+			"message": "Validation error",
+			"error":   errors.Error(),
+		}, http.StatusBadRequest)
+		return
+	}
+	lockStatus, err := h.Service.CheckAndLockResource(reqBody.UserId, reqBody.ResourceId)
+	if err != nil {
+		WriteJSON(w, map[string]string{
+			"message": "Failed to check or lock resource",
+			"error":   err.Error(),
+		}, http.StatusInternalServerError)
+		return
+	}
+	WriteJSON(w, map[string]interface{}{
+		"message":     fmt.Sprintf("Resource %d locked by %d", reqBody.ResourceId, reqBody.UserId),
+		"lock_status": lockStatus,
+	}, http.StatusOK)
+}
+
+func (h *Handler) UnlockResource(w http.ResponseWriter, r *http.Request) {
+	reqBody := new(model.LockResourceReq)
+	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+		WriteJSON(w, map[string]string{
+			"message": "Failed to decode request body",
+			"error":   err.Error(),
+		}, http.StatusBadRequest)
+		return
+	}
+	if err := validate.Struct(reqBody); err != nil {
+		errors := err.(validator.ValidationErrors)
+		WriteJSON(w, map[string]string{
+			"message": "Validation error",
+			"error":   errors.Error(),
+		}, http.StatusBadRequest)
+		return
+	}
+	if err := h.Service.UnlockResource(reqBody.ResourceId); err != nil {
+		WriteJSON(w, map[string]string{
+			"message": "Failed to unlock resource",
+			"error":   err.Error(),
+		}, http.StatusInternalServerError)
+		return
+	}
+	WriteJSON(w, map[string]string{
+		"message": "resource unlocked successfully",
 	}, http.StatusOK)
 }

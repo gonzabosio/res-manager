@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gonzabosio/res-manager/model"
+	"github.com/gonzabosio/res-manager/view/components"
 	"github.com/maxence-charriere/go-app/v10/pkg/app"
 )
 
@@ -59,8 +60,10 @@ func (r *Resource) Render() app.UI {
 		app.If(!r.editMode, func() app.UI {
 			return app.Div().Body(
 				app.Button().Text("Dashboard").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
+					r.unlockResource(ctx, r.user.Id, r.resource.Id)
 					ctx.Navigate("/dashboard")
 				}),
+				app.P().Text("Pressing dashboard button you will unlock the edition of this resource").Class("advice-txt"),
 				app.P().Text(r.resource.Title).ID("res-title"),
 				app.Button().Text("Delete").Class("global-btn").OnClick(r.deleteResource),
 				app.Button().Text("Edit").Class("global-btn").OnClick(func(ctx app.Context, e app.Event) {
@@ -299,5 +302,56 @@ func (r *Resource) deleteImage(ctx app.Context, imgName string) {
 		}
 		r.errMessage = errResBody.Message
 		app.Log(err)
+	}
+}
+
+func (r *Resource) unlockResource(ctx app.Context, userId, resourceId int64) {
+	req, err := http.NewRequest(http.MethodPatch, fmt.Sprintf("%s/resource/unlock", app.Getenv("BACK_URL")), bytes.NewReader([]byte(fmt.Sprintf(`
+	{
+		"user_id": %d,
+		"resource_id": %d
+	}`, userId, resourceId,
+	))))
+	if err != nil {
+		app.Logf("Failed to create unlock-resource request: %v\n", err)
+		r.errMessage = "Failed to unlock resource"
+		return
+	}
+
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", r.accessToken))
+	req.Header.Add("Content-Type", "application/json")
+	client := http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		app.Log(err)
+		r.errMessage = "Failed to unlock resource"
+		return
+	}
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		r.errMessage = "Failed to read unlock resource process"
+		return
+	}
+	if res.StatusCode == http.StatusOK {
+		var body components.LockResourceResponse
+		if err = json.Unmarshal(b, &body); err != nil {
+			app.Log(err)
+			r.errMessage = "Failed to parse unlock resource response"
+			return
+		}
+		app.Logf("%s - unlock status: %t", body.Message, body.LockStatus)
+		r.errMessage = ""
+	} else if res.StatusCode == http.StatusUnauthorized {
+		ctx.LocalStorage().Del("access-token")
+		ctx.Navigate("/")
+	} else {
+		var body errResponseBody
+		if err = json.Unmarshal(b, &body); err != nil {
+			app.Log(err)
+			r.errMessage = "Could not parse the section modifications"
+			return
+		}
+		app.Log(body.Err)
+		r.errMessage = body.Message
 	}
 }

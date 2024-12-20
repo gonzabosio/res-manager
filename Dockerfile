@@ -14,6 +14,4 @@ WORKDIR /app
 
 COPY --from=builder /app .
 
-EXPOSE 3060
-
 CMD ["./view/home", "${BUCKET_NAME}"]

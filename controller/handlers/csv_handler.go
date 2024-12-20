@@ -71,6 +71,13 @@ func (h *Handler) UploadCSV(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	newResource.SectionId = sectionId
+	userIdStr := r.FormValue("userId")
+	userId, err := strconv.ParseInt(userIdStr, 10, 64)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("could not parse user id: %v", err), http.StatusInternalServerError)
+		return
+	}
+	newResource.LockedBy = userId
 	if err := h.Service.CreateResource(newResource); err != nil {
 		log.Println(err)
 		http.Error(w, fmt.Sprintf("could not save resource: %v", err), http.StatusBadRequest)
