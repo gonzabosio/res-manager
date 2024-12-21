@@ -197,3 +197,27 @@ func (h *Handler) UnlockResource(w http.ResponseWriter, r *http.Request) {
 		"message": "resource unlocked successfully",
 	}, http.StatusOK)
 }
+
+func (h *Handler) VerifyLockStatus(w http.ResponseWriter, r *http.Request) {
+	resourceIdStr := chi.URLParam(r, "resource-id")
+	resourceId, err := strconv.ParseInt(resourceIdStr, 10, 64)
+	if err != nil {
+		WriteJSON(w, map[string]string{
+			"message": "Failed to verify lock status",
+			"error":   err.Error(),
+		}, http.StatusInternalServerError)
+		return
+	}
+	status, err := h.Service.VerifyLockStatus(resourceId)
+	if err != nil {
+		WriteJSON(w, map[string]string{
+			"message": "Failed to verify lock status",
+			"error":   err.Error(),
+		}, http.StatusInternalServerError)
+		return
+	}
+	WriteJSON(w, map[string]interface{}{
+		"message":     "Lock status retrieved",
+		"lock_status": status,
+	}, http.StatusOK)
+}

@@ -64,6 +64,7 @@ func Routing() *chi.Mux {
 		r.Delete("/resource/{resource-id}", h.DeleteResource)
 		r.Patch("/resource/lock", h.LockResource)
 		r.Patch("/resource/unlock", h.UnlockResource)
+		r.Get("/resource/{resource-id}/lock", h.VerifyLockStatus)
 
 		r.Post("/user", h.RegisterUser) // if user already exists retrieve info
 		r.Get("/user", h.GetUsers)

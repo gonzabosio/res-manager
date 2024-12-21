@@ -20,6 +20,7 @@ type ResourceRepository interface {
 	DeleteImageByResourceID(string, int64) error
 	CheckAndLockResource(userId, resourceId int64) (bool, error)
 	UnlockResource(resourceId int64) error
+	VerifyLockStatus(resourceId int64) (bool, error)
 }
 
 var _ ResourceRepository = (*DBService)(nil)
@@ -155,4 +156,12 @@ func (s *DBService) UnlockResource(resourceId int64) error {
 		return fmt.Errorf("resource is not locked by this user")
 	}
 	return nil
+}
+
+func (s *DBService) VerifyLockStatus(resourceId int64) (lockStatus bool, err error) {
+	row := s.DB.QueryRow(`SELECT lock_status FROM resource WHERE id = $1`, resourceId)
+	if err := row.Scan(&lockStatus); err != nil {
+		return false, err
+	}
+	return lockStatus, nil
 }

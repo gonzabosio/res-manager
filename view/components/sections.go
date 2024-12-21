@@ -129,23 +129,32 @@ func (s *Sections) Render() app.UI {
 					it := s.resourcesList[i]
 					return app.If(it.LockStatus && s.user.Id != it.LockedBy, func() app.UI {
 						// locked
-						return app.P().Text(fmt.Sprintf("-%s- edition locked by: %d 🔒", s.resourcesList[i].Title, s.resourcesList[i].LockedBy)).
+						return app.P().Text(fmt.Sprintf("-%s- edition locked by: %d 🔒", it.Title, it.LockedBy)).
 							Class("small-card", "resource-card")
-					}).ElseIf(s.user.Id == s.resourcesList[i].LockedBy, func() app.UI {
+					}).ElseIf(s.user.Id == it.LockedBy, func() app.UI {
 						// locked by the current user
-						return app.A().Text(fmt.Sprintf("-%s- edition locked by you", s.resourcesList[i].Title)).Href(fmt.Sprintf("/dashboard/project/res?sid=%d&stitle=%s", s.section.Id, url.QueryEscape(s.section.Title))).
+						return app.A().Text(fmt.Sprintf("-%s- edition locked by you", it.Title)).Href(fmt.Sprintf("/dashboard/project/res?sid=%d&stitle=%s", s.section.Id, url.QueryEscape(s.section.Title))).
 							Class("small-card", "resource-card").
 							OnClick(func(ctx app.Context, e app.Event) {
-								s.lockResource(ctx, s.user.Id, s.resourcesList[i].Id)
-								ctx.SessionStorage().Set("resource", s.resourcesList[i])
+								s.lockResource(ctx, s.user.Id, it.Id)
+								ctx.SessionStorage().Set("resource", it)
 							})
 					}).Else(func() app.UI {
 						// unlocked
-						return app.A().Text(s.resourcesList[i].Title).Href(fmt.Sprintf("/dashboard/project/res?sid=%d&stitle=%s", s.section.Id, url.QueryEscape(s.section.Title))).
+						return app.A().Text(it.Title).Href(fmt.Sprintf("/dashboard/project/res?sid=%d&stitle=%s", s.section.Id, url.QueryEscape(s.section.Title))).
 							Class("small-card", "resource-card").
 							OnClick(func(ctx app.Context, e app.Event) {
-								s.lockResource(ctx, s.user.Id, s.resourcesList[i].Id)
-								ctx.SessionStorage().Set("resource", s.resourcesList[i])
+								e.PreventDefault()
+								ctx.Async(func() {
+									locked := s.verifyLockStatus(it.Id)
+									if locked {
+										ctx.Navigate("/dashboard/project")
+										app.Window().Call("alert", "Resource locked 🔒")
+									} else {
+										s.lockResource(ctx, s.user.Id, it.Id)
+										ctx.SessionStorage().Set("resource", it)
+									}
+								})
 							})
 					})
 				}),
@@ -474,4 +483,34 @@ func (s *Sections) lockResource(ctx app.Context, userId, resourceId int64) {
 		app.Log(body.Err)
 		s.errMessage = body.Message
 	}
+}
+
+func (s *Sections) verifyLockStatus(resourceId int64) bool {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/resource/%d/lock", app.Getenv("BACK_URL"), resourceId), nil)
+	if err != nil {
+		s.errMessage = "Failed to check lock status"
+		app.Log(err)
+		return false
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", s.accessToken))
+	req.Header.Add("Content-Type", "application/json")
+	client := http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		s.errMessage = "Failed to check lock status"
+		app.Log(err)
+		return false
+	}
+	resBody := make(map[string]interface{})
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		app.Log(err)
+		return false
+	}
+	if err := json.Unmarshal(b, &resBody); err != nil {
+		app.Log(err)
+		return false
+	}
+	lockStatus := resBody["lock_status"].(bool)
+	return lockStatus
 }
